@@ -1,0 +1,22 @@
+<!-- Search Results -->
+{% if query %}
+<div style="padding:4px 8px;">
+    <span style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-tertiary);">Results for "{{ query }}"</span>
+</div>
+{% endif %}
+
+{% if results %}
+    {% for r in results %}
+    <a href="/pages/{{ r.id }}" class="search-result-item">
+        <div class="search-result-breadcrumb">{{ r.notebook_title }} › {{ r.section_title }}</div>
+        <div class="search-result-title">{{ r.title }}</div>
+        {% if r.snippet %}
+        <div class="search-result-snippet">{{ r.snippet | safe }}</div>
+        {% endif %}
+    </a>
+    {% endfor %}
+{% elif query %}
+    <div style="padding:12px;font-size:13px;color:var(--text-tertiary);text-align:center;">
+        No results found
+    </div>
+{% endif %}

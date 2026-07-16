@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crapper Keeper</title>
+    <link rel="stylesheet" href="/static/css/app.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "@tiptap/core": "https://esm.sh/@tiptap/core@2.11.5",
+            "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.11.5",
+            "@tiptap/extension-underline": "https://esm.sh/@tiptap/extension-underline@2.11.5",
+            "@tiptap/extension-link": "https://esm.sh/@tiptap/extension-link@2.11.5",
+            "@tiptap/extension-image": "https://esm.sh/@tiptap/extension-image@2.11.5",
+            "@tiptap/extension-highlight": "https://esm.sh/@tiptap/extension-highlight@2.11.5",
+            "@tiptap/extension-text-align": "https://esm.sh/@tiptap/extension-text-align@2.11.5",
+            "@tiptap/extension-table": "https://esm.sh/@tiptap/extension-table@2.11.5",
+            "@tiptap/extension-table-row": "https://esm.sh/@tiptap/extension-table-row@2.11.5",
+            "@tiptap/extension-table-cell": "https://esm.sh/@tiptap/extension-table-cell@2.11.5",
+            "@tiptap/extension-table-header": "https://esm.sh/@tiptap/extension-table-header@2.11.5",
+            "@tiptap/extension-task-list": "https://esm.sh/@tiptap/extension-task-list@2.11.5",
+            "@tiptap/extension-task-item": "https://esm.sh/@tiptap/extension-task-item@2.11.5"
+        }
+    }
+    </script>
+</head>
+<body>
+
+    <!-- Title Bar -->
+    <div class="title-bar">
+        <button onclick="document.querySelector('.sidebar').classList.toggle('hidden')" title="Toggle sidebar">☰</button>
+        <span class="brand">Crapper Keeper</span>
+
+        <div class="search-wrapper">
+            <span class="search-icon">⌕</span>
+            <form hx-get="/search" hx-trigger="keyup changed delay:300ms"
+                  hx-target="#search-results" hx-swap="innerHTML"
+                  _="on submit halt
+                     on htmx:afterRequest remove .hidden from #search-results">
+                <input type="text" name="q" placeholder="Search all notes..."
+                       class="search-input"
+                       _="on focus remove .hidden from #search-results
+                          on blur[event.relatedTarget is not in #search-results] add .hidden to #search-results">
+            </form>
+            <div id="search-results" class="search-results hidden"></div>
+        </div>
+
+        <button onclick="document.documentElement.classList.toggle('dark')" title="Dark mode">◑</button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+        <!-- Trapper Keeper Tab Strip -->
+        <div class="tk-strip">
+            {% include "components/notebook_list.html" %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar" style="padding-left:4px;">
+            <div class="sidebar-divider"></div>
+            {% include "components/section_pane.html" %}
+            <div class="sidebar-divider"></div>
+            {% include "components/page_list.html" %}
+        </div>
+
+        <!-- Resizer -->
+        <div class="resizer"
+             _="on mousedown
+                  halt
+                  set dragging to true
+                  set startX to event.clientX
+                  set sidebar to previous <div/>
+                  set startW to sidebar.offsetWidth
+                  then
+                  repeat until event mouseup from document
+                    js sidebar.style.width = (startW + (event.clientX - startX)) + 'px'
+                  end
+                end"
+        ></div>
+
+        <!-- Editor -->
+        <div class="editor-pane">
+            {% include "components/page_editor.html" %}
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <span id="save-status">📶 Connected</span>
+        {% if current_notebook and current_section and current_page %}
+        <span class="status-breadcrumb">{{ current_notebook.title }} › {{ current_section.title }} › {{ current_page.title }}</span>
+        {% endif %}
+    </div>
+
+    <script src="/static/js/autosave.js"></script>
+    <script src="/static/js/drag-drop.js"></script>
+    <script src="/static/js/editor.js"></script>
+
+</body>
+</html>

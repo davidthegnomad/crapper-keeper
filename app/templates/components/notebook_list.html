@@ -1,0 +1,31 @@
+<!--
+  Trapper Keeper Vertical Staggered Tabs
+  Colored tabs cascade down the left edge, each notebook gets its own tab.
+  Active tab extends further, hover reveals full name.
+-->
+{% if notebooks %}
+<div class="tk-tabs-container">
+    {% for nb in notebooks %}
+    <a href="/notebooks/{{ nb.id }}"
+       class="tk-tab tk-tab-{{ loop.index }}
+              {% if current_notebook and current_notebook.id == nb.id %}tk-tab-active{% endif %}"
+       style="--tab-color: {{ nb.color or '#80397b' }};
+              --tab-index: {{ loop.index }};"
+       title="{{ nb.title }}">
+        <span class="tk-tab-label">{{ nb.title }}</span>
+    </a>
+    {% endfor %}
+    <form hx-post="/notebooks/" hx-target="body" style="position:absolute; top:{{ (notebooks|length * 34) + 16 }}px; left:0;">
+        <button type="submit" class="tk-tab tk-tab-add"
+                style="position:static;font-size:16px;padding-left:10px;min-width:30px;"
+                title="New notebook">+</button>
+    </form>
+</div>
+{% else %}
+<div class="tk-tabs-container" style="padding:12px;font-size:11px;color:var(--text-tertiary);text-align:center;">
+    <form hx-post="/notebooks/" hx-target="body">
+        <input type="text" name="title" placeholder="First notebook..."
+               style="width:100%;padding:4px 8px;border:1px solid var(--border-default);border-radius:4px;font-size:11px;outline:none;" autofocus>
+    </form>
+</div>
+{% endif %}

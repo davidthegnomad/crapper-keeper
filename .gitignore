@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Database
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Uploads
+uploads/images/*
+uploads/attachments/*
+uploads/audio/*
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Node
+node_modules/
+
+# Backup
+backups/

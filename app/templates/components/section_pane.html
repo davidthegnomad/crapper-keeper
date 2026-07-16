@@ -1,0 +1,58 @@
+<!-- Section Pane (sidebar middle) -->
+<div class="section-pane-scroll">
+    <div class="sidebar-section-header" style="padding-top:8px;">
+        <span class="sidebar-section-label">Chapters</span>
+    </div>
+
+    {% if current_notebook %}
+        {% for sg in section_groups %}
+        <!-- Section Group -->
+        <div>
+            <div class="section-group-header"
+                 _="on click toggle .hidden on next <div/>
+                    if my firstChild.innerText == '▸' then set my firstChild.innerText to '▾' else set my firstChild.innerText to '▸' end">
+                <span style="min-width:14px;text-align:center;">▸</span>
+                <span>{{ sg.title }}</span>
+            </div>
+            <div id="section-list-sortable" class="hidden">
+                {% for s in current_notebook.sections %}
+                    {% if s.section_group_id == sg.id %}
+                    <div data-section-id="{{ s.id }}" data-notebook-id="{{ current_notebook.id }}" class="section-item-row" style="padding-left:12px;">
+                        <span class="drag-handle section-drag-handle">⋮⋮</span>
+                        <a href="/notebooks/{{ current_notebook.id }}/sections/{{ s.id }}"
+                           class="section-item flex-1 {% if current_section and current_section.id == s.id %}active{% endif %}"
+                           style="border-left-color: {{ s.color or '#80397b' }}">
+                            {{ s.title }}
+                        </a>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Top-level sections -->
+        <div id="section-list-sortable">
+            {% for s in sections %}
+            <div data-section-id="{{ s.id }}" data-notebook-id="{{ current_notebook.id }}" class="section-item-row">
+                <span class="drag-handle section-drag-handle">⋮⋮</span>
+                <a href="/notebooks/{{ current_notebook.id }}/sections/{{ s.id }}"
+                   class="section-item flex-1 {% if current_section and current_section.id == s.id %}active{% endif %}"
+                   style="border-left-color: {{ s.color or '#80397b' }}">
+                    {{ s.title }}
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Quick Add Section -->
+        <form hx-post="/notebooks/{{ current_notebook.id }}/sections/" hx-target="body" class="section-add-form" style="margin-top:4px;">
+            <input type="text" name="title" placeholder="+ Section">
+            <input type="hidden" name="color" value="#5B9BD5">
+        </form>
+    {% else %}
+        <div style="padding:6px 12px;font-size:var(--text-xs);color:var(--text-tertiary);font-style:italic;">
+            {% if notebooks %}Select a notebook{% else %}Create a notebook to get started{% endif %}
+        </div>
+    {% endif %}
+</div>

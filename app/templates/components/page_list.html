@@ -1,0 +1,55 @@
+<!-- Page List (sidebar bottom) -->
+<div class="page-pane-scroll">
+    <div class="sidebar-section-header" style="padding-top:8px;">
+        <span class="sidebar-section-label">Pages</span>
+    </div>
+
+    {% if current_section %}
+        <div id="page-list-sortable">
+            {% for page, subpages in pages %}
+            <div data-page-id="{{ page.id }}">
+                <div class="page-item-row">
+                    <span class="drag-handle">⋮⋮</span>
+                    {% if subpages %}
+                    <span class="page-collapse-btn"
+                          _="on click halt the event then toggle .hidden on the next <div/> then
+                             if my innerText == '▸' set my innerText to '▾' else set my innerText to '▸' end">▸</span>
+                    {% else %}
+                    <span style="width:18px;"></span>
+                    {% endif %}
+                    <a href="/pages/{{ page.id }}"
+                       class="page-item {% if current_page and current_page.id == page.id %}active{% endif %}">
+                        {{ page.title }}
+                    </a>
+                </div>
+                {% if subpages %}
+                <div class="hidden">
+                    {% for sub in subpages %}
+                    <div data-page-id="{{ sub.id }}" data-parent-page-id="{{ page.id }}">
+                        <div class="page-item-row">
+                            <span class="drag-handle">⋮⋮</span>
+                            <span style="width:18px;"></span>
+                            <a href="/pages/{{ sub.id }}"
+                               class="page-item subpage {% if current_page and current_page.id == sub.id %}active{% endif %}">
+                                {{ sub.title }}
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Quick Add Page -->
+        <form hx-post="/pages/" hx-target="body" class="page-add-form" style="margin-top:4px;">
+            <input type="hidden" name="section_id" value="{{ current_section.id }}">
+            <input type="text" name="title" placeholder="+ Page">
+        </form>
+    {% else %}
+        <div style="padding:6px 12px;font-size:var(--text-xs);color:var(--text-tertiary);font-style:italic;">
+            Select a section
+        </div>
+    {% endif %}
+</div>

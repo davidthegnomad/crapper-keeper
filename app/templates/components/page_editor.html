@@ -1,0 +1,144 @@
+<!-- Page Editor (right pane) -->
+{% if current_page %}
+<div class="editor-container">
+    <!-- Hidden content for TipTap rehydration -->
+    <script id="page-content-json" type="application/json">{{ current_page.content_json | safe }}</script>
+
+    <!-- Page Title -->
+    <h1 id="page-title" class="page-title"
+        contenteditable="true"
+        _="on blur
+              fetch '/pages/{{ current_page.id }}'
+                method:'PUT'
+                headers:{'Content-Type':'application/json'}
+                body: JSON.stringify({title: my.innerText.trim() || 'Untitled Page'})
+              end">{{ current_page.title }}</h1>
+
+    <!-- Section color accent -->
+    {% if current_section and current_section.color %}
+    <div class="page-accent" style="background: {{ current_section.color }}"></div>
+    {% endif %}
+
+    <!-- Toolbar -->
+    <div id="editor-toolbar" class="editor-toolbar">
+        <button type="button" class="toolbar-btn" data-tiptap="heading" data-level="1" title="Heading 1">H1</button>
+        <button type="button" class="toolbar-btn" data-tiptap="heading" data-level="2" title="Heading 2">H2</button>
+        <button type="button" class="toolbar-btn" data-tiptap="heading" data-level="3" title="Heading 3">H3</button>
+        <span class="toolbar-separator"></span>
+        <button type="button" class="toolbar-btn bold" data-tiptap="bold" title="Bold">B</button>
+        <button type="button" class="toolbar-btn italic" data-tiptap="italic" title="Italic">I</button>
+        <button type="button" class="toolbar-btn" data-tiptap="underline" title="Underline"><u>U</u></button>
+        <button type="button" class="toolbar-btn" data-tiptap="strike" title="Strikethrough"><s>S</s></button>
+        <span class="toolbar-separator"></span>
+        <button type="button" class="toolbar-btn" data-tiptap="bulletList" title="Bullet List">•≡</button>
+        <button type="button" class="toolbar-btn" data-tiptap="orderedList" title="Ordered List">1≡</button>
+        <button type="button" class="toolbar-btn" data-tiptap="taskList" title="Task List">☑</button>
+        <span class="toolbar-separator"></span>
+        <button type="button" class="toolbar-btn" data-tiptap="table" title="Insert Table">⊞</button>
+        <button type="button" class="toolbar-btn" data-tiptap="blockquote" title="Quote">❝</button>
+        <button type="button" class="toolbar-btn" data-tiptap="codeBlock" title="Code">&lt;/&gt;</button>
+        <span class="toolbar-separator"></span>
+        <button type="button" class="toolbar-btn" data-tiptap="horizontalRule" title="Divider">—</button>
+        <button type="button" class="toolbar-btn" data-tiptap="link" title="Insert Link">🔗</button>
+        <button type="button" class="toolbar-btn" id="btn-upload-image" title="Insert Image">🖼</button>
+        <span class="toolbar-separator"></span>
+        <button type="button" class="toolbar-btn" id="btn-tags" title="Tags">🏷</button>
+    </div>
+
+    <!-- Editor Body -->
+    <div class="editor-body">
+        <div id="editor-content" data-page-id="{{ current_page.id }}"></div>
+    </div>
+
+    <input type="file" id="image-upload-input" accept="image/*"
+           _="on change
+                if my.files.length > 0
+                  set formData to new FormData()
+                  formData.append('file', my.files[0])
+                  fetch '/upload/image' with method:'POST' body:formData
+                    then
+                      set result to JSON.parse(the result)
+                      if currentEditor
+                        currentEditor.chain().focus().setImage({src: result.url}).run()
+                      end
+                    end
+                  set my.value to ''
+                end">
+</div>
+
+<!-- Toolbar JS -->
+<script>
+(function() {
+    const tb = document.getElementById('editor-toolbar');
+    if (!tb) return;
+
+    tb.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-tiptap]');
+        if (!btn || !window.currentEditor) return;
+        const cmd = btn.dataset.tiptap, ed = window.currentEditor;
+        switch (cmd) {
+            case 'bold': ed.chain().focus().toggleBold().run(); break;
+            case 'italic': ed.chain().focus().toggleItalic().run(); break;
+            case 'underline': ed.chain().focus().toggleUnderline().run(); break;
+            case 'strike': ed.chain().focus().toggleStrike().run(); break;
+            case 'heading': ed.chain().focus().toggleHeading({level:parseInt(btn.dataset.level)||2}).run(); break;
+            case 'bulletList': ed.chain().focus().toggleBulletList().run(); break;
+            case 'orderedList': ed.chain().focus().toggleOrderedList().run(); break;
+            case 'taskList': ed.chain().focus().toggleTaskList().run(); break;
+            case 'table':
+                ed.chain().focus().insertTable({rows:3,cols:3,withHeaderRow:true}).run();
+                break;
+            case 'blockquote': ed.chain().focus().toggleBlockquote().run(); break;
+            case 'codeBlock': ed.chain().focus().toggleCodeBlock().run(); break;
+            case 'horizontalRule': ed.chain().focus().setHorizontalRule().run(); break;
+            case 'link':
+                var url = prompt('Enter URL:');
+                if (url) ed.chain().focus().setLink({href:url}).run();
+                else ed.chain().focus().unsetLink().run();
+                break;
+        }
+        updateToolbar(ed);
+    });
+
+    document.getElementById('btn-upload-image')?.addEventListener('click', function() {
+        document.getElementById('image-upload-input')?.click();
+    });
+
+    function updateToolbar(ed) {
+        document.querySelectorAll('[data-tiptap]').forEach(function(b) {
+            var c = b.dataset.tiptap, a = false;
+            if (c==='bold') a=ed.isActive('bold');
+            else if (c==='italic') a=ed.isActive('italic');
+            else if (c==='underline') a=ed.isActive('underline');
+            else if (c==='strike') a=ed.isActive('strike');
+            else if (c==='heading') a=ed.isActive('heading',{level:parseInt(b.dataset.level)});
+            else if (c==='bulletList') a=ed.isActive('bulletList');
+            else if (c==='orderedList') a=ed.isActive('orderedList');
+            else if (c==='taskList') a=ed.isActive('taskList');
+            else if (c==='blockquote') a=ed.isActive('blockquote');
+            else if (c==='codeBlock') a=ed.isActive('codeBlock');
+            b.classList.toggle('active', a);
+        });
+    }
+
+    setInterval(function() { if (window.currentEditor) updateToolbar(window.currentEditor); }, 500);
+})();
+</script>
+{% else %}
+<div class="empty-state">
+    <div class="empty-inner">
+        {% if notebooks and current_section %}
+        <p>Select a page from the sidebar</p>
+        {% elif notebooks %}
+        <h2>Welcome to Crapper Keeper</h2>
+        <p>Select a section from the sidebar to get started.</p>
+        {% else %}
+        <h2>Welcome to Crapper Keeper</h2>
+        <p>Your personal knowledge base, OneNote-style.</p>
+        <form hx-post="/notebooks/" hx-target="body">
+            <input type="text" name="title" placeholder="Name your first notebook..." autofocus>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
