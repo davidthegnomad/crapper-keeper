@@ -29,3 +29,5 @@ node_modules/
 
 # Backup
 backups/
+.firebase/
+crapper_keeper.db

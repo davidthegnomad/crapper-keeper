@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { width: 280px; padding: 16px; font-family: -apple-system, sans-serif; font-size: 13px; }
+        h2 { font-size: 16px; color: #80397b; margin: 0 0 12px; }
+        select { width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 8px; font-size: 13px; }
+        button { width: 100%; padding: 8px; border-radius: 6px; border: none; background: #80397b; color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
+        button:hover { background: #a55aa1; }
+        .status { margin-top: 8px; font-size: 11px; color: #666; text-align: center; }
+        a { color: #80397b; text-decoration: none; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2>Crapper Keeper</h2>
+    <label>Save to notebook:</label>
+    <select id="notebook-select"><option>Loading…</option></select>
+    <label>Chapter:</label>
+    <select id="section-select"><option>Select notebook first</option></select>
+    <button id="btn-save">Save Settings</button>
+    <div id="status" class="status"></div>
+    <div style="margin-top:12px;text-align:center;">
+        <a href="https://davidthegnomadorg.web.app/crapper-keeper/" target="_blank">Open Webapp →</a>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

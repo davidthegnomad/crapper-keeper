@@ -1,0 +1,29 @@
+{
+  "hosting": {
+    "public": "deploy-dn",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "/crapper-keeper/**", "destination": "/crapper-keeper/index.html" },
+      { "source": "**", "destination": "/404.html" }
+    ],
+    "headers": [
+      {
+        "source": "/crapper-keeper/**",
+        "headers": [
+          {
+            "key": "Cross-Origin-Opener-Policy",
+            "value": "same-origin-allow-popups"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

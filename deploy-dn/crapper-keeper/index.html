@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crapper Keeper</title>
+    <link rel="stylesheet" href="/crapper-keeper/css/app.css">
+
+    <!-- Firebase Auth — loads before anything else -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+    <script>
+        firebase.initializeApp({
+            apiKey: "AIzaSyAsI-4TWgro-hzpij93EA1FeG57Zaxz-EA",
+            authDomain: "davidthegnomadorg.firebaseapp.com",
+            projectId: "davidthegnomadorg",
+            storageBucket: "davidthegnomadorg.firebasestorage.app",
+        });
+        window._signIn = async function() {
+            const btn = document.getElementById('btn-google-signin');
+            const err = document.getElementById('auth-error');
+            btn.disabled = true;
+            btn.textContent = 'Signing in…';
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                await firebase.auth().signInWithPopup(provider);
+            } catch(e) {
+                err.textContent = e.message;
+                err.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '🔵 Sign in with Google';
+            }
+        };
+    </script>
+
+    <!-- TipTap importmap -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@tiptap/core": "https://esm.sh/@tiptap/core@2.11.5",
+            "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.11.5",
+            "@tiptap/extension-underline": "https://esm.sh/@tiptap/extension-underline@2.11.5",
+            "@tiptap/extension-link": "https://esm.sh/@tiptap/extension-link@2.11.5",
+            "@tiptap/extension-image": "https://esm.sh/@tiptap/extension-image@2.11.5",
+            "@tiptap/extension-highlight": "https://esm.sh/@tiptap/extension-highlight@2.11.5",
+            "@tiptap/extension-text-align": "https://esm.sh/@tiptap/extension-text-align@2.11.5",
+            "@tiptap/extension-table": "https://esm.sh/@tiptap/extension-table@2.11.5",
+            "@tiptap/extension-table-row": "https://esm.sh/@tiptap/extension-table-row@2.11.5",
+            "@tiptap/extension-table-cell": "https://esm.sh/@tiptap/extension-table-cell@2.11.5",
+            "@tiptap/extension-table-header": "https://esm.sh/@tiptap/extension-table-header@2.11.5",
+            "@tiptap/extension-task-list": "https://esm.sh/@tiptap/extension-task-list@2.11.5",
+            "@tiptap/extension-task-item": "https://esm.sh/@tiptap/extension-task-item@2.11.5"
+        }
+    }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"></script>
+</head>
+<body>
+
+    <!-- Sign-in overlay -->
+    <div id="auth-overlay" style="position:fixed;inset:0;z-index:1000;background:var(--surface-gray-50);display:flex;align-items:center;justify-content:center;">
+        <div style="text-align:center;padding:40px;">
+            <h1 style="font-size:28px;font-weight:700;color:var(--brand-purple);margin-bottom:8px;">Crapper Keeper</h1>
+            <p style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;">Sign in to access your notebooks</p>
+            <button id="btn-google-signin" onclick="window._signIn()" style="padding:12px 32px;font-size:14px;font-weight:600;border:none;border-radius:8px;background:var(--surface-white);color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,0.1);cursor:pointer;display:flex;align-items:center;gap:10px;margin:0 auto;">
+                🔵 Sign in with Google
+            </button>
+            <p id="auth-error" style="display:none;margin-top:16px;font-size:13px;color:#c62828;max-width:320px;"></p>
+        </div>
+    </div>
+
+    <!-- App shell -->
+    <div id="app-shell" style="display:none;flex:1;flex-direction:column;height:100%;">
+
+    <div class="title-bar">
+        <button onclick="document.querySelector('.sidebar').classList.toggle('hidden')" title="Toggle sidebar">☰</button>
+        <span class="brand">Crapper Keeper</span>
+        <div class="search-wrapper">
+            <span class="search-icon">⌕</span>
+            <input type="text" placeholder="Search all notes..." class="search-input">
+            <div id="search-results" class="search-results hidden"></div>
+        </div>
+        <button title="Dark mode">◑</button>
+        <button title="Export notebook as Markdown" id="btn-export" style="color:rgba(255,255,255,.8);font-size:14px;padding:4px 8px;border-radius:4px;">⬇</button>
+    </div>
+
+    <div class="main-content">
+        <div class="tk-strip"><div class="tk-tabs-container"></div></div>
+        <div class="sidebar" style="padding-left:4px;">
+            <div class="sidebar-divider"></div>
+            <div class="section-pane-scroll">
+                <div class="sidebar-section-header" style="padding-top:8px;"><span class="sidebar-section-label">Chapters</span></div>
+                <div id="section-list"></div>
+                <div id="section-add-form"></div>
+            </div>
+            <div class="sidebar-divider"></div>
+            <div class="page-pane-scroll">
+                <div class="sidebar-section-header" style="padding-top:8px;"><span class="sidebar-section-label">Pages</span></div>
+                <div id="page-list"></div>
+                <div id="page-add-form"></div>
+            </div>
+        </div>
+        <div class="resizer" _="on mousedown halt set dragging to true set startX to event.clientX set sidebar to previous <div/> set startW to sidebar.offsetWidth then repeat until event mouseup from document js sidebar.style.width = (startW + (event.clientX - startX)) + 'px' end"></div>
+        <div id="editor-pane" class="editor-pane"><div class="empty-state"><div class="empty-inner"><h2>Welcome to Crapper Keeper</h2><p>Loading…</p></div></div></div>
+    </div>
+
+    <div class="status-bar">
+        <span id="save-status">📶 Connected</span>
+        <span id="breadcrumb" class="status-breadcrumb"></span>
+    </div>
+
+    </div><!-- end app-shell -->
+
+    <script src="/crapper-keeper/js/autosave.js"></script>
+    <script src="/crapper-keeper/js/drag-drop.js"></script>
+    <script src="/crapper-keeper/js/editor.js"></script>
+    <script type="module" src="/crapper-keeper/js/app.js"></script>
+
+</body>
+</html>
