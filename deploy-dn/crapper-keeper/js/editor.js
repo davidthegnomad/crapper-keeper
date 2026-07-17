@@ -1,9 +1,21 @@
 /**
  * Crapper Keeper — TipTap Rich Text Editor
- * 
- * TipTap loads from esm.sh CDN via importmap in base.html.
- * No build step required — works directly in the browser.
+ * Bundled locally by Vite for web, iOS, and Android.
  */
+
+import { Editor } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
+import Highlight from '@tiptap/extension-highlight';
+import TextAlign from '@tiptap/extension-text-align';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 
 let currentEditor = null;
 let currentPageId = null;
@@ -19,21 +31,6 @@ async function initEditor(pageId) {
     currentPageId = pageId;
     const container = document.getElementById('editor-content');
     if (!container) return;
-
-    // TipTap modules loaded via importmap in base.html
-    const { Editor } = await import('@tiptap/core');
-    const { default: StarterKit } = await import('@tiptap/starter-kit');
-    const { default: Underline } = await import('@tiptap/extension-underline');
-    const { default: Link } = await import('@tiptap/extension-link');
-    const { default: Image } = await import('@tiptap/extension-image');
-    const { default: Highlight } = await import('@tiptap/extension-highlight');
-    const { default: TextAlign } = await import('@tiptap/extension-text-align');
-    const { default: Table } = await import('@tiptap/extension-table');
-    const { default: TableRow } = await import('@tiptap/extension-table-row');
-    const { default: TableCell } = await import('@tiptap/extension-table-cell');
-    const { default: TableHeader } = await import('@tiptap/extension-table-header');
-    const { default: TaskList } = await import('@tiptap/extension-task-list');
-    const { default: TaskItem } = await import('@tiptap/extension-task-item');
 
     // Load page content from hidden meta tag
     const meta = document.getElementById('page-content-json');
@@ -68,14 +65,12 @@ async function initEditor(pageId) {
         editable: true,
         autofocus: 'end',
         onUpdate: () => {
-            if (typeof onEditorUpdate === 'function') {
-                onEditorUpdate(currentEditor);
+            if (typeof window.onEditorUpdate === 'function') {
+                window.onEditorUpdate(currentEditor);
             }
         },
     });
 
-    // Reset dirty tracking
-    lastSavedJSON = JSON.stringify(currentEditor.getJSON());
     window.currentEditor = currentEditor;
 }
 
@@ -109,57 +104,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey && e.key === 's') {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            if (currentEditor) forceSave(currentPageId, currentEditor);
+            if (currentEditor && typeof window.saveToServer === 'function') {
+                window.saveToServer(currentEditor);
+            }
         }
-        if (e.ctrlKey && e.key === 'e') {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
             e.preventDefault();
-            const searchInput = document.querySelector('input[name="q"]');
+            const searchInput = document.querySelector('.search-input');
             if (searchInput) searchInput.focus();
         }
-        if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
             e.preventDefault();
-            // Create new section — focus the section form
-            const form = document.querySelector('#section-list-sortable form input');
+            const form = document.querySelector('#input-new-section');
             if (form) form.focus();
         }
-        if (e.ctrlKey && e.key === 'n' && !e.shiftKey) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !e.shiftKey) {
             e.preventDefault();
-            // Create new page
-            const form = document.querySelector('#page-list-sortable form input');
+            const form = document.querySelector('#input-new-page');
             if (form) form.focus();
         }
     });
 });
 
-// ── Re-init after HTMX swaps ─────────────────────────────────────────────────
-
-document.body.addEventListener('htmx:afterSwap', async (evt) => {
-    const editorContainer = document.getElementById('editor-content');
-    if (editorContainer && editorContainer.dataset.pageId) {
-        const newPageId = parseInt(editorContainer.dataset.pageId);
-        if (newPageId !== currentPageId) {
-            await initEditor(newPageId);
-        }
-    }
-});
-
-// ── HTMX navigation guard — force save before swap ───────────────────────────
-
-document.body.addEventListener('htmx:beforeSwap', (evt) => {
-    if (currentEditor && typeof isEditorDirty === 'function' && isEditorDirty()) {
-        evt.preventDefault();
-        forceSave(currentPageId, currentEditor).then(() => {
-            destroyEditor();
-            // Allow the swap to proceed
-            htmx.trigger(evt.detail.target, 'htmx:afterForceSave');
-            // Re-trigger the original event
-            setTimeout(() => {
-                htmx.trigger(evt.detail.elt, evt.detail.triggerSpec.trigger);
-            }, 100);
-        });
-    } else if (currentEditor) {
-        destroyEditor();
-    }
-});
+window.initEditor = initEditor;
+window.destroyEditor = destroyEditor;

@@ -2,71 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Crapper Keeper</title>
-    <link rel="stylesheet" href="/crapper-keeper/css/app.css">
-
-    <!-- Firebase Auth — loads before anything else -->
-    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-    <script>
-        firebase.initializeApp({
-            apiKey: "AIzaSyAsI-4TWgro-hzpij93EA1FeG57Zaxz-EA",
-            authDomain: "davidthegnomadorg.firebaseapp.com",
-            projectId: "davidthegnomadorg",
-            storageBucket: "davidthegnomadorg.firebasestorage.app",
-        });
-        window._signIn = async function() {
-            const btn = document.getElementById('btn-google-signin');
-            const err = document.getElementById('auth-error');
-            btn.disabled = true;
-            btn.textContent = 'Signing in…';
-            try {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                await firebase.auth().signInWithPopup(provider);
-            } catch(e) {
-                err.textContent = e.message;
-                err.style.display = 'block';
-                btn.disabled = false;
-                btn.textContent = '🔵 Sign in with Google';
-            }
-        };
-    </script>
-
-    <!-- TipTap importmap -->
-    <script type="importmap">
-    {
-        "imports": {
-            "@tiptap/core": "https://esm.sh/@tiptap/core@2.11.5",
-            "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.11.5",
-            "@tiptap/extension-underline": "https://esm.sh/@tiptap/extension-underline@2.11.5",
-            "@tiptap/extension-link": "https://esm.sh/@tiptap/extension-link@2.11.5",
-            "@tiptap/extension-image": "https://esm.sh/@tiptap/extension-image@2.11.5",
-            "@tiptap/extension-highlight": "https://esm.sh/@tiptap/extension-highlight@2.11.5",
-            "@tiptap/extension-text-align": "https://esm.sh/@tiptap/extension-text-align@2.11.5",
-            "@tiptap/extension-table": "https://esm.sh/@tiptap/extension-table@2.11.5",
-            "@tiptap/extension-table-row": "https://esm.sh/@tiptap/extension-table-row@2.11.5",
-            "@tiptap/extension-table-cell": "https://esm.sh/@tiptap/extension-table-cell@2.11.5",
-            "@tiptap/extension-table-header": "https://esm.sh/@tiptap/extension-table-header@2.11.5",
-            "@tiptap/extension-task-list": "https://esm.sh/@tiptap/extension-task-list@2.11.5",
-            "@tiptap/extension-task-item": "https://esm.sh/@tiptap/extension-task-item@2.11.5"
-        }
-    }
-    </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1/Sortable.min.js"></script>
+    <meta name="description" content="Get your 💩 together — Crapper Keeper by Gnomad Studio.">
+    <meta property="og:title" content="Crapper Keeper">
+    <meta property="og:description" content="Get your 💩 together.">
+    <meta property="og:image" content="https://davidthegnomadorg.web.app/crapper-keeper/icons/og-1200x630.png">
+    <meta property="og:type" content="website">
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="./css/app.css">
+    <script>try{if(localStorage.getItem('ck-dark')==='1')document.documentElement.classList.add('dark')}catch(e){}</script>
 </head>
 <body>
 
-    <!-- Sign-in overlay -->
-    <div id="auth-overlay" style="position:fixed;inset:0;z-index:1000;background:var(--surface-gray-50);display:flex;align-items:center;justify-content:center;">
-        <div style="text-align:center;padding:40px;">
-            <h1 style="font-size:28px;font-weight:700;color:var(--brand-purple);margin-bottom:8px;">Crapper Keeper</h1>
-            <p style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;">Sign in to access your notebooks</p>
-            <button id="btn-google-signin" onclick="window._signIn()" style="padding:12px 32px;font-size:14px;font-weight:600;border:none;border-radius:8px;background:var(--surface-white);color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,0.1);cursor:pointer;display:flex;align-items:center;gap:10px;margin:0 auto;">
+    <!-- Sign-in overlay — Gnomad vaporwave -->
+    <div id="auth-overlay" style="position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 20%, #6b2db5 0%, #2a0a4a 55%, #12061f 100%);">
+        <div style="text-align:center;padding:40px;max-width:360px;">
+            <img src="./icons/icon-192.png" alt="Crapper Keeper" width="96" height="96" style="border-radius:22px;box-shadow:0 0 32px rgba(255,43,214,0.45),0 0 64px rgba(0,229,255,0.2);margin-bottom:20px;">
+            <h1 style="font-size:28px;font-weight:700;color:#fff;margin-bottom:8px;text-shadow:0 0 18px rgba(255,43,214,0.55);">Crapper Keeper</h1>
+            <p style="font-size:14px;color:rgba(255,255,255,0.72);margin-bottom:24px;">Get your 💩 together.</p>
+            <button id="btn-google-signin" style="padding:12px 32px;font-size:14px;font-weight:600;border:none;border-radius:8px;background:#fff;color:#2a0a4a;box-shadow:0 0 24px rgba(0,229,255,0.35);cursor:pointer;display:flex;align-items:center;gap:10px;margin:0 auto 10px;">
                 🔵 Sign in with Google
             </button>
-            <p id="auth-error" style="display:none;margin-top:16px;font-size:13px;color:#c62828;max-width:320px;"></p>
+            <button id="btn-apple-signin" class="hidden" style="padding:12px 32px;font-size:14px;font-weight:600;border:1px solid rgba(255,255,255,.35);border-radius:8px;background:#000;color:#fff;cursor:pointer;align-items:center;gap:10px;margin:0 auto;">
+                 Sign in with Apple
+            </button>
+            <p id="auth-error" style="display:none;margin-top:16px;font-size:13px;color:#ff8a80;max-width:320px;"></p>
+            <p style="margin-top:28px;font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:0.04em;">GNOMAD STUDIO</p>
         </div>
     </div>
 
@@ -75,33 +38,38 @@
 
     <div class="title-bar">
         <button onclick="document.querySelector('.sidebar').classList.toggle('hidden')" title="Toggle sidebar">☰</button>
-        <span class="brand">Crapper Keeper</span>
+        <span class="brand">
+            <img class="brand-icon" src="./icons/icon-192.png" alt="" width="28" height="28">
+            Crapper Keeper
+        </span>
         <div class="search-wrapper">
             <span class="search-icon">⌕</span>
             <input type="text" placeholder="Search all notes..." class="search-input">
             <div id="search-results" class="search-results hidden"></div>
         </div>
-        <button title="Dark mode">◑</button>
+        <button type="button" id="btn-dark-mode" title="Toggle vaporwave dark mode" aria-pressed="false">◑</button>
         <button title="Export notebook as Markdown" id="btn-export" style="color:rgba(255,255,255,.8);font-size:14px;padding:4px 8px;border-radius:4px;">⬇</button>
+        <button title="Account settings" id="btn-account" class="account-action">⚙</button>
     </div>
 
     <div class="main-content">
         <div class="tk-strip"><div class="tk-tabs-container"></div></div>
         <div class="sidebar" style="padding-left:4px;">
             <div class="sidebar-divider"></div>
-            <div class="section-pane-scroll">
+            <div class="section-pane-scroll" id="section-pane">
                 <div class="sidebar-section-header" style="padding-top:8px;"><span class="sidebar-section-label">Chapters</span></div>
                 <div id="section-list"></div>
                 <div id="section-add-form"></div>
             </div>
-            <div class="sidebar-divider"></div>
-            <div class="page-pane-scroll">
+            <div class="sidebar-v-resizer" id="sidebar-v-resizer" title="Drag to resize chapters / pages" role="separator" aria-orientation="horizontal"></div>
+            <div class="page-pane-scroll" id="page-pane">
                 <div class="sidebar-section-header" style="padding-top:8px;"><span class="sidebar-section-label">Pages</span></div>
                 <div id="page-list"></div>
                 <div id="page-add-form"></div>
             </div>
+            <a class="sidebar-credit" href="https://gnomadstudio.org" target="_blank" rel="noopener noreferrer">Made with ❤️ by Gnomad Studio 🦙</a>
         </div>
-        <div class="resizer" _="on mousedown halt set dragging to true set startX to event.clientX set sidebar to previous <div/> set startW to sidebar.offsetWidth then repeat until event mouseup from document js sidebar.style.width = (startW + (event.clientX - startX)) + 'px' end"></div>
+        <div class="resizer" id="sidebar-h-resizer" title="Drag to resize sidebar" role="separator" aria-orientation="vertical"></div>
         <div id="editor-pane" class="editor-pane"><div class="empty-state"><div class="empty-inner"><h2>Welcome to Crapper Keeper</h2><p>Loading…</p></div></div></div>
     </div>
 
@@ -110,12 +78,19 @@
         <span id="breadcrumb" class="status-breadcrumb"></span>
     </div>
 
+    <div id="account-menu" class="account-menu hidden" role="dialog" aria-label="Account settings">
+        <a class="account-menu-link" href="mailto:support@gnomadstudio.org">📧 Support email</a>
+        <a class="account-menu-link" href="https://gnomadstudio.org" target="_blank" rel="noopener noreferrer">Made with ❤️ by Gnomad Studio 🦙</a>
+        <div class="account-menu-meta">Crapper Keeper <span id="app-version">v—</span></div>
+        <hr class="account-menu-sep">
+        <button id="btn-signout">Sign out</button>
+        <button id="btn-delete-account" class="danger">Delete account and data</button>
+        <button id="btn-account-close">Cancel</button>
+    </div>
+
     </div><!-- end app-shell -->
 
-    <script src="/crapper-keeper/js/autosave.js"></script>
-    <script src="/crapper-keeper/js/drag-drop.js"></script>
-    <script src="/crapper-keeper/js/editor.js"></script>
-    <script type="module" src="/crapper-keeper/js/app.js"></script>
+    <script type="module" src="./js/app.js"></script>
 
 </body>
 </html>

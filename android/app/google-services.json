@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "987094737269",
+    "project_id": "davidthegnomadorg",
+    "storage_bucket": "davidthegnomadorg.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:987094737269:android:c37402802fffce4ae6f33c",
+        "android_client_info": {
+          "package_name": "com.gnomadstudio.crapperkeeper"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "987094737269-r0plrjp2m3qab5idbuqkijckvl90j9rf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnnjIpqb7uLtYJxphrR03m7YUpxV_b9L0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "987094737269-r0plrjp2m3qab5idbuqkijckvl90j9rf.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "987094737269-ls9o3s4ep200ugqjbdna7vpl63e26tok.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.gnomadstudio.crapperkeeper"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

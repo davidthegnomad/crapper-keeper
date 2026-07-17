@@ -1,7 +1,7 @@
 # Crapper Keeper — Browser Extension
 
 ## Overview
-A Chrome extension that syncs with the Crapper Keeper webapp. Right-click any webpage to save it as a note. Uses the same Firebase project and Google Auth — if you're signed into the webapp, the extension recognizes you automatically.
+A Chrome (MV3) extension that saves webpages into the Crapper Keeper webapp's data. Right-click any page/selection/image/link to save it as a note. It uses the same Firebase project (`davidthegnomadorg`) and your Google account — but signs in **independently**, because browser login state is scoped per-origin and can't be shared between the webapp (`davidthegnomadorg.web.app`) and the extension (`chrome-extension://…`).
 
 ---
 
@@ -10,11 +10,11 @@ A Chrome extension that syncs with the Crapper Keeper webapp. Right-click any we
 | Feature | Description |
 |---------|-------------|
 | **Save page** | Right-click → "Save to Crapper Keeper" — saves page title + URL |
-| **Save selection** | Right-click selected text → "Save selection to Crapper Keeper" — saves highlighted text as content |
-| **Save image** | Right-click image → "Save image to Crapper Keeper" — saves image URL and alt text |
-| **Save link** | Right-click link → "Save link to Crapper Keeper" — saves link text + href |
-| **Auto-auth** | Uses same Firebase Auth as webapp — no separate login needed |
-| **Config popup** | Click extension icon → set default notebook + chapter for saves |
+| **Save selection** | Right-click selected text — saves highlighted text as content |
+| **Save image** | Right-click image — saves image URL |
+| **Save link** | Right-click link — saves link href + source page |
+| **Google sign-in** | `chrome.identity` → Firebase session (own login, remembered) |
+| **Config popup** | Click icon → sign in + set default notebook/chapter |
 
 ---
 
@@ -22,52 +22,58 @@ A Chrome extension that syncs with the Crapper Keeper webapp. Right-click any we
 
 ```
 extension/
-├── manifest.json          # Chrome MV3 manifest
-├── background.js          # Service worker: context menus, Firebase, save logic
-├── popup.html             # Settings popup
-├── popup.js               # Popup logic
-├── icons/
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
+├── manifest.json          # MV3 manifest (pinned key, identity/storage/contextMenus)
+├── background.js          # Service worker: menus, auth, Firestore REST
+├── popup.html             # Sign-in + settings popup
+├── popup.js               # Popup logic (messages the service worker)
+├── icons/                 # 16 / 48 / 128 px
 └── plan.md
 ```
 
-### contextMenus (created on install)
+### Auth flow (no bundled SDK — MV3 forbids remote scripts)
 ```
-"Save to Crapper Keeper"        ← page context
-"Save selection to CK"          ← selection context  
-"Save image to CK"              ← image context
-"Save link to CK"               ← link context
+Sign in (popup button or first right-click)
+  → chrome.identity.launchWebAuthFlow (Google implicit token flow, existing Web OAuth client)
+  → Google access token
+  → accounts:signInWithIdp (Identity Toolkit REST)   → Firebase idToken + refreshToken + uid
+  → cache in chrome.storage.local (refresh via securetoken.googleapis.com when expired)
 ```
 
 ### Save flow
 ```
-User right-clicks → background.js receives menu click
-  → Gets page/selection/image/link info
-  → Authenticates with Firebase (silent, no popup)
-  → Creates page in Firestore under user's default notebook/chapter
-  → Shows notification "Saved to Crapper Keeper ✓"
+Right-click → background.js
+  → ensureAuth(interactive)   (first use opens Google sign-in)
+  → getDefaultTarget(uid)     (stored prefs, else first notebook/chapter)
+  → POST pages via Firestore REST with Bearer <firebase idToken>
+  → toolbar badge ✓ / !
 ```
 
-### Storage (chrome.storage.sync)
-- `defaultNotebookId` — which notebook to save to
-- `defaultSectionId` — which chapter within that notebook
+### Storage
+- `chrome.storage.sync`: `notebookId`, `sectionId` (default save target)
+- `chrome.storage.local`: `fbIdToken`, `fbRefreshToken`, `fbExpiry`, `uid`
+
+### Firestore document (pages)
+`{ userId, sectionId, parentPageId:null, title, contentJson, contentPlain, url, position, isCollapsed, treePath, createdAt, updatedAt }` — matches the webapp schema so saved notes render in the editor.
 
 ---
 
-## Firebase Sync
-- Shares `davidthegnomadorg` project
-- Same Firestore database
-- Same Google Auth — `chrome.identity.getAuthToken` for silent auth
-- Creates pages with: `{ userId, sectionId, title, contentJson, contentPlain, url, favicon, createdAt }`
+## One-time OAuth setup
+Add the extension's redirect URI to the existing Web OAuth client (`987094737269-…`):
+```
+https://bnphbmoakfepbbofcccekiainldenffm.chromiumapp.org/
+```
+The extension ID is pinned by the manifest `key`, so this URL is stable.
 
 ---
 
-## Build Steps
-1. Create manifest.json with permissions (contextMenus, storage, identity)
-2. Create background.js with context menu handlers + Firestore save
-3. Create popup for config
-4. Generate icons
-5. Load unpacked extension in Chrome
-6. Test save from right-click menu
+## Build / test steps
+1. Add redirect URI to the Web OAuth client (above)
+2. `chrome://extensions` → Developer mode → Load unpacked → select `extension/`
+3. Click CK icon → Sign in with Google
+4. Right-click a page → "Save to Crapper Keeper" → confirm ✓ badge
+5. Open the webapp → confirm the note appears in the chosen notebook/chapter
+
+## Known limits / TODO
+- Chrome/Edge only (Firefox uses a different `identity` redirect scheme).
+- Firestore composite indexes for `userId + notebookId + position` and `userId + position` must exist (already deployed with the webapp).
+- No offline queue — a save while offline just flashes `!`.

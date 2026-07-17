@@ -1,0 +1,19 @@
+{
+  "appId": "com.gnomadstudio.crapperkeeper",
+  "appName": "Crapper Keeper",
+  "webDir": "dist/crapper-keeper",
+  "backgroundColor": "#2a0a4a",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#2a0a4a"
+  },
+  "android": {
+    "backgroundColor": "#2a0a4a"
+  },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["google.com", "apple.com"]
+    }
+  }
+}

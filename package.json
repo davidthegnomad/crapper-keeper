@@ -1,19 +1,41 @@
 {
   "name": "crapper-keeper",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
-    "css": "npx @tailwindcss/cli -i ./app/static/css/input.css -o ./app/static/css/app.css --watch"
+    "build": "vite build && mkdir -p dist/crapper-keeper/icons && cp -R deploy-dn/crapper-keeper/icons/. dist/crapper-keeper/icons/",
+    "dev": "vite",
+    "deploy:web": "npm run build && firebase deploy --only hosting --project davidthegnomadorg --config firebase-dn.json",
+    "css": "npx @tailwindcss/cli -i ./app/static/css/input.css -o ./app/static/css/app.css --watch",
+    "mobile:sync": "npm run build && PATH=\"$HOME/.gem/ruby/2.6.0/bin:$PATH\" RUBYOPT=-rlogger cap sync",
+    "mobile:ios": "npm run mobile:sync && cap open ios",
+    "mobile:android": "npm run mobile:sync && cap open android"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.8",
+    "@tailwindcss/cli": "^4.0.0",
     "tailwindcss": "^4.0.0",
-    "@tailwindcss/cli": "^4.0.0"
+    "vite": "^8.1.5"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^7.5.0",
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/core": "^7.6.8",
+    "@capacitor/ios": "^7.6.8",
     "@tiptap/core": "^2.11.0",
-    "@tiptap/starter-kit": "^2.11.0",
+    "@tiptap/extension-highlight": "^2.11.5",
     "@tiptap/extension-image": "^2.11.0",
     "@tiptap/extension-link": "^2.11.0",
+    "@tiptap/extension-table": "^2.11.5",
+    "@tiptap/extension-table-cell": "^2.11.5",
+    "@tiptap/extension-table-header": "^2.11.5",
+    "@tiptap/extension-table-row": "^2.11.5",
+    "@tiptap/extension-task-item": "^2.11.5",
+    "@tiptap/extension-task-list": "^2.11.5",
+    "@tiptap/extension-text-align": "^2.11.5",
     "@tiptap/extension-underline": "^2.11.0",
+    "@tiptap/starter-kit": "^2.11.0",
+    "firebase": "^11.10.0",
     "sortablejs": "^1.15.0"
   }
 }

@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "deploy-dn",
+    "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       { "source": "/crapper-keeper/**", "destination": "/crapper-keeper/index.html" },
@@ -25,5 +25,8 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsHdvtsflsFbHhRLRVcroGZbZgcQ3he4Yu3qhKf83OpBB8SzxnvXDm029F7rTE6sTpU6AAGlxIGE60PVNVTiu7s607+R0XScdBvE8VNjPAYXKXGDKDgWap3+wJaI8ybjqcam0k1iTr4kg1b+LHY8cNIGWVDuM9BJb7abdF1wMWjPgpaiF6sTjsSxrsP/eaDdZ/IyQTk/SCSL7xp48Lo0cJjdB0N4viogaGzimqX8ZnbngaAwWaSyKFd7Ss32SAv+Mmpt1S7B6gw5LhcNVqiKXPl43fQETS8pKOCVsC5DccT+A+VhCFdF83bf1RAuKp4Zs5sQhn5DWX9EUISIKiIw69wIDAQAB",
   "name": "Crapper Keeper",
-  "version": "1.0",
-  "description": "Right-click any webpage to save it to your Crapper Keeper notebooks.",
-  "permissions": ["contextMenus", "storage"],
-  "host_permissions": ["https://*.firebaseapp.com/*", "https://*.googleapis.com/*"],
+  "version": "1.1.0",
+  "description": "Get your 💩 together. Right-click any webpage to save it to Crapper Keeper.",
+  "permissions": ["contextMenus", "storage", "identity"],
+  "host_permissions": ["https://*.googleapis.com/*"],
   "background": {
     "service_worker": "background.js"
   },

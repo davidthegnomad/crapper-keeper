@@ -3,17 +3,22 @@
  * Replaces all Python routers. Direct Firestore reads/writes from browser.
  */
 
-import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
     getFirestore, collection, doc, getDoc, getDocs, addDoc,
     updateDoc, deleteDoc, query, where, orderBy, limit, writeBatch, Timestamp
-} from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-storage.js';
+} from 'firebase/firestore';
+import {
+    getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject
+} from 'firebase/storage';
 import {
     getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
     getRedirectResult, signOut, onAuthStateChanged, setPersistence,
-    browserLocalPersistence
-} from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+    browserLocalPersistence, signInWithCredential, OAuthProvider,
+    deleteUser
+} from 'firebase/auth';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
@@ -30,12 +35,19 @@ const storage = getStorage(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+const appleProvider = new OAuthProvider('apple.com');
 
 const persistenceReady = setPersistence(auth, browserLocalPersistence).catch(() => {});
+const isNative = Capacitor.isNativePlatform();
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
 export function initAuth(callback) {
+    if (isNative) {
+        persistenceReady.finally(() => onAuthStateChanged(auth, callback));
+        return;
+    }
+
     // Complete redirect flow (Arc / COOP-safe path) before listening
     Promise.all([persistenceReady, getRedirectResult(auth).catch((e) => {
         console.warn('getRedirectResult:', e);
@@ -46,6 +58,20 @@ export function initAuth(callback) {
 
 export async function signInWithGoogle() {
     await persistenceReady;
+    if (isNative) {
+        const result = await FirebaseAuthentication.signInWithGoogle({
+            skipNativeAuth: true,
+        });
+        const credential = result.credential;
+        if (!credential?.idToken) {
+            throw new Error('Google did not return an ID token');
+        }
+        return signInWithCredential(
+            auth,
+            GoogleAuthProvider.credential(credential.idToken)
+        );
+    }
+
     try {
         return await signInWithPopup(auth, googleProvider);
     } catch (e) {
@@ -69,12 +95,76 @@ export async function signInWithGoogle() {
     }
 }
 
+export async function signInWithApple() {
+    await persistenceReady;
+    if (!isNative) {
+        return signInWithPopup(auth, appleProvider);
+    }
+
+    const result = await FirebaseAuthentication.signInWithApple({
+        skipNativeAuth: true,
+    });
+    const credential = result.credential;
+    if (!credential?.idToken) {
+        throw new Error('Apple did not return an ID token');
+    }
+    return signInWithCredential(
+        auth,
+        appleProvider.credential({
+            idToken: credential.idToken,
+            rawNonce: credential.nonce,
+        })
+    );
+}
+
 export async function signOutUser() {
+    if (isNative) {
+        await FirebaseAuthentication.signOut();
+    }
     return signOut(auth);
+}
+
+export async function deleteCurrentAccount() {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not signed in');
+
+    const lastSignIn = Date.parse(user.metadata.lastSignInTime || '');
+    if (!lastSignIn || Date.now() - lastSignIn > 5 * 60 * 1000) {
+        throw new Error('Recent sign-in required');
+    }
+
+    // Remove user-owned data before deleting Auth, while Firestore rules still
+    // recognize request.auth.uid. Re-query in batches to stay under 500 writes.
+    for (const collectionName of ['pages', 'sections', 'sectionGroups', 'notebooks']) {
+        while (true) {
+            const owned = await getDocs(query(
+                collection(db, collectionName),
+                where('userId', '==', user.uid),
+                limit(450)
+            ));
+            if (owned.empty) break;
+            const batch = writeBatch(db);
+            owned.docs.forEach(item => batch.delete(item.ref));
+            await batch.commit();
+        }
+    }
+
+    // Uploaded images are namespaced by uid.
+    const images = await listAll(ref(storage, `images/${user.uid}`));
+    await Promise.all(images.items.map(item => deleteObject(item)));
+
+    await deleteUser(user);
+    if (isNative) {
+        await FirebaseAuthentication.signOut();
+    }
 }
 
 export function getCurrentUser() {
     return auth.currentUser;
+}
+
+export function getRuntimePlatform() {
+    return Capacitor.getPlatform();
 }
 
 function requireUid() {
@@ -104,12 +194,15 @@ export async function getNotebook(id) {
     return data;
 }
 
-export async function createNotebook(title) {
+export async function createNotebook(title, opts = {}) {
     const uid = requireUid();
+    const colorSlot = opts.colorSlot ?? (1 + Math.floor(Math.random() * 8));
+    const color = opts.color || '#5B9BD5';
     const ref = await addDoc(collection(db, 'notebooks'), {
         userId: uid,
         title,
-        color: '#5B9BD5',
+        color,
+        colorSlot,
         position: Date.now(),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -307,8 +400,8 @@ export async function seedIfEmpty() {
 
     const uid = requireUid();
 
-    const nbId = await createNotebook('Notebooks');
-    await updateDoc(doc(db, 'notebooks', nbId), { color: '#5B9BD5', position: 0 });
+    const nbId = await createNotebook('Notebooks', { colorSlot: 2, color: '#5B9BD5' });
+    await updateDoc(doc(db, 'notebooks', nbId), { position: 0 });
 
     const s1Id = await createSection(nbId, 'Quick Notes', null, '#5B9BD5');
     const s2Id = await createSection(nbId, 'Ideas', null, '#E57373');
@@ -317,8 +410,8 @@ export async function seedIfEmpty() {
     await createPage(s1Id, 'Quick Scratchpad');
     await createPage(s2Id, 'Brainstorms');
 
-    const wId = await createNotebook('Work');
-    await updateDoc(doc(db, 'notebooks', wId), { color: '#81C784', position: 1 });
+    const wId = await createNotebook('Work', { colorSlot: 3, color: '#81C784' });
+    await updateDoc(doc(db, 'notebooks', wId), { position: 1 });
 
     await addDoc(collection(db, 'sectionGroups'), {
         userId: uid,
