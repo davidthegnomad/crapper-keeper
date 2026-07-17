@@ -246,8 +246,67 @@ extension/
 
 ### Install
 1. `chrome://extensions` → Developer mode ON → Load unpacked → select `extension/`
-2. Sign into the [webapp](https://davidthegnomadorg.web.app/crapper-keeper/) first
+2. Click the CK toolbar icon → Sign in with Google
 3. Right-click any page → "Save to Crapper Keeper"
 
 ### Auth
-Shares the same Firebase project and Google Auth. If signed into the webapp, the extension picks up your session automatically.
+The extension cannot reuse the webapp's origin-scoped Firebase session. It uses
+`chrome.identity.launchWebAuthFlow`, exchanges the Google token for a Firebase
+session, and writes through the Firestore REST API. Firebase/TipTap code is
+bundled locally because Manifest V3 forbids remotely hosted executable code.
+
+---
+
+## Phase 6: iOS and Android Apps (2026-07-17)
+
+### 6.1 Architecture
+- Added Capacitor 7 native shells under `ios/` and `android/`
+- Canonical app ID: `com.gnomadstudio.crapperkeeper`
+- Added Vite production build (`vite.config.js`) with locally bundled Firebase and TipTap
+- Changed web assets to relative URLs so the same build works under Firebase Hosting and Capacitor
+- Firebase Hosting now serves the generated `dist/` tree
+
+### 6.2 Native Firebase registration
+- Registered Firebase Android app:
+  `1:987094737269:android:c37402802fffce4ae6f33c`
+- Registered Firebase iOS app:
+  `1:987094737269:ios:0fbe022f429df273e6f33c`
+- Added `android/app/google-services.json`
+- Added `ios/App/App/GoogleService-Info.plist`
+- Added Google callback URL scheme and Sign in with Apple entitlement in Xcode
+
+### 6.3 Authentication
+- Google sign-in uses the native Capacitor Firebase Authentication plugin on iOS/Android
+- Sign in with Apple is displayed on iOS with equal prominence
+- Native provider credentials are bridged into Firebase JS Auth so existing
+  Firestore `request.auth.uid` rules and data remain compatible
+- Added sign-out and in-app account deletion
+
+### 6.4 Mobile application work
+- Added safe-area handling and responsive phone layout
+- Sidebar becomes a mobile overlay and closes when a page is selected
+- Increased touch targets and editor text size for phones
+- Replaced CDN imports/importmaps with npm packages bundled by Vite
+- Corrected autosave: 1.2-second debounce → Firestore, with visible save status
+- Added macOS/iPad keyboard shortcut support via `metaKey`
+- Removed obsolete HTMX/FastAPI editor hooks from the shipped SPA
+
+### 6.5 Privacy and data lifecycle
+- Added owner-only Firebase Storage rules at `storage.rules`
+- Added bundled privacy policy at
+  `deploy-dn/crapper-keeper/public/privacy.html`
+- Account deletion removes owned pages, sections, section groups, notebooks,
+  uploaded images, and then the Firebase Auth account
+
+### 6.6 Build tooling and verification
+- Added `npm run build`, `mobile:sync`, `mobile:ios`, and `mobile:android`
+- Installed CocoaPods 1.15.2 in the user Ruby gem path
+- `npm run mobile:sync` succeeds for iOS and Android
+- `npx cap doctor` reports both native projects healthy
+- Vite build, IDE diagnostics, JSON validation, and plist validation pass
+- Native execution remains pending because this Mac lacks Android Studio/SDK
+  and an installed Xcode iOS simulator runtime
+
+### 6.7 Release references
+- Native setup and store checklist: `MOBILE_RELEASE.md`
+- Submission sequence and status: `ROADMAP.md`

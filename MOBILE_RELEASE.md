@@ -1,5 +1,8 @@
 # Crapper Keeper — iOS and Android Release
 
+Implementation history is recorded in `BUILD_LOG.md`; submission sequencing and
+live status are tracked in `ROADMAP.md`.
+
 ## App identity
 
 - Display name: **Crapper Keeper**

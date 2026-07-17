@@ -4,10 +4,10 @@
 Automatically record session activity, decisions, and state changes for the Crapper Keeper project. The agent reads this file at session start and appends at session end.
 
 ## Session State
-- **Current Phase:** Firebase deployment + Chrome extension (complete)
+- **Current Phase:** Native configuration + device testing
 - **Last Deploy:** 2026-07-17 — davidthegnomadorg.web.app/crapper-keeper/
-- **Open Issues:** None blocking
-- **Next Steps:** Test extension in Chrome, verify Google sign-in works on webapp
+- **Open Issues:** Apple provider config, Android signing SHAs/toolchain, iOS runtime
+- **Next Steps:** Complete native config, run device matrix, submit TestFlight and Play internal builds
 
 ## How to Use
 The agent should:
