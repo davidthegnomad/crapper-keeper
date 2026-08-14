@@ -1,19 +1,24 @@
 {
   "name": "crapper-keeper",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "private": true,
   "scripts": {
     "build": "vite build && mkdir -p dist/crapper-keeper/icons && cp -R deploy-dn/crapper-keeper/icons/. dist/crapper-keeper/icons/",
     "dev": "vite",
-    "deploy:web": "npm run build && firebase deploy --only hosting --project davidthegnomadorg --config firebase-dn.json",
+    "deploy:web": "npm run build && npx --yes firebase-tools@13 deploy --only hosting --project davidthegnomadorg --config firebase-dn.json --non-interactive",
     "css": "npx @tailwindcss/cli -i ./app/static/css/input.css -o ./app/static/css/app.css --watch",
     "mobile:sync": "npm run build && PATH=\"$HOME/.gem/ruby/2.6.0/bin:$PATH\" RUBYOPT=-rlogger cap sync",
     "mobile:ios": "npm run mobile:sync && cap open ios",
-    "mobile:android": "npm run mobile:sync && cap open android"
+    "mobile:android": "npm run mobile:sync && cap open android",
+    "desktop": "electron desktop/main.js",
+    "desktop:win": "electron-builder --win nsis portable --x64 --publish never",
+    "desktop:mac": "electron-builder --mac dmg --arm64 --publish never"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.8",
     "@tailwindcss/cli": "^4.0.0",
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.3",
     "tailwindcss": "^4.0.0",
     "vite": "^8.1.5"
   },
@@ -36,6 +41,8 @@
     "@tiptap/extension-underline": "^2.11.0",
     "@tiptap/starter-kit": "^2.11.0",
     "firebase": "^11.10.0",
+    "htmx.org": "^2.0.10",
+    "marked": "^18.0.9",
     "sortablejs": "^1.15.0"
   }
 }

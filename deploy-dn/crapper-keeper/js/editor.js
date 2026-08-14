@@ -22,7 +22,24 @@ let currentPageId = null;
 
 // ── TipTap initialization ────────────────────────────────────────────────────
 
-async function initEditor(pageId) {
+function resolveTipTapContent(raw) {
+    if (raw && typeof raw === 'object') return raw;
+    if (typeof raw !== 'string') return '';
+    const s = raw.trim();
+    if (!s) return '';
+    if (s.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(s);
+            if (parsed && parsed.type === 'doc') return parsed;
+        } catch (e) {
+            console.warn('Failed to parse page content JSON, using as HTML');
+            return s;
+        }
+    }
+    return s;
+}
+
+async function initEditor(pageId, rawContent) {
     if (currentEditor) {
         currentEditor.destroy();
         currentEditor = null;
@@ -32,16 +49,12 @@ async function initEditor(pageId) {
     const container = document.getElementById('editor-content');
     if (!container) return;
 
-    // Load page content from hidden meta tag
-    const meta = document.getElementById('page-content-json');
-    let content = null;
-    if (meta && meta.textContent.trim()) {
-        try {
-            content = JSON.parse(meta.textContent);
-        } catch (e) {
-            console.warn('Failed to parse page content JSON, starting fresh');
-        }
+    let content = rawContent;
+    if (content == null) {
+        const meta = document.getElementById('page-content-json');
+        if (meta && meta.textContent.trim()) content = meta.textContent;
     }
+    content = resolveTipTapContent(content);
 
     currentEditor = new Editor({
         element: container,
@@ -80,6 +93,7 @@ function destroyEditor() {
         currentEditor = null;
         currentPageId = null;
     }
+    window.currentEditor = null;
 }
 
 // ── Refresh page content from server into hidden meta ───────────────────────
@@ -106,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            if (currentEditor && typeof window.saveToServer === 'function') {
+            if (typeof window.saveToServer === 'function') {
                 window.saveToServer(currentEditor);
             }
         }

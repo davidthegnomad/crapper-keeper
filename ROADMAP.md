@@ -1,7 +1,7 @@
 # Crapper Keeper Roadmap
 
-**Updated:** 2026-07-17  
-**Current milestone:** Native configuration and device testing
+**Updated:** 2026-08-14  
+**Current milestone:** Markdown/HTML/HTMX page modes shipped (web); native testing still pending
 
 ## Completed
 
@@ -18,6 +18,9 @@
 - [x] In-app sign-out and account/data deletion
 - [x] Privacy policy and owner-only Storage rules
 - [x] Successful Vite build and Capacitor sync for both platforms
+- [x] Markdown and HTML/HTMX page modes with live preview
+- [x] Windows/macOS Electron desktop shell (loads live web app)
+- [x] Installable PWA manifest (Edge/Chrome on Windows)
 
 ## Milestone 1 — Finish native account configuration
 
@@ -83,6 +86,8 @@
 
 ## Later
 
+- [x] Render Markdown pages (live preview, GFM)
+- [x] Render HTML/HTMX pages (source + HTMX-processed preview)
 - [ ] Native share-sheet capture into Crapper Keeper
 - [ ] Offline queue and conflict-safe synchronization
 - [ ] Native Files/Share export for Markdown

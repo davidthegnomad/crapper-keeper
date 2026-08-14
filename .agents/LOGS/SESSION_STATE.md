@@ -1,7 +1,7 @@
 # Session State — Crapper Keeper
 
-**Last Updated:** 2026-07-17 15:27 CDT
-**Current Phase:** Native configuration and device testing
+**Last Updated:** 2026-08-14 15:06 CDT
+**Current Phase:** v1.3.0 live (PWA + Electron desktop shell)
 
 ## Project Status
 
@@ -15,7 +15,31 @@
 - ✅ Firestore autosave repaired
 - ✅ Sign-out and account/data deletion
 - ✅ Privacy policy and Storage rules authored
+- ✅ Page modes: Rich / Markdown / HTML+HTMX
+- ✅ Web deploy of v1.3.0 (PWA manifest + SW) → https://davidthegnomadorg.web.app/crapper-keeper/
+- ✅ Capacitor iOS/Android synced (re-sync after next web change if shipping stores)
+- ✅ Electron desktop shell (`desktop/`) — loads live web app; Windows `.exe` via GH Action
 - ⏳ Native runtime testing and store submission
+- ⏳ Push `main` so GitHub Actions can emit the Windows installer
+
+## Session Chronicle — 2026-08-14
+
+### Pull + render modes
+- Confirmed `main` already matched `origin/main` (last GitHub push 2026-07-17)
+- Added `pageMode` + `contentSource` on Firestore pages
+- Markdown: GFM via `marked`, source/split/preview
+- HTML/HTMX: source editor + `htmx.process()` preview; scripts/on* stripped
+- Mode switch converts TipTap ↔ Markdown/HTML; export includes both
+- **Deployed** hosting to `davidthegnomadorg` (live JS `index-Ctve9v3W.js`)
+- **Synced** Capacitor iOS + Android web assets to the same v1.2.0 bundle
+- New files: `deploy-dn/crapper-keeper/js/render-modes.js`
+
+### Windows desktop
+- Confirmed **no** existing Electron/Tauri/Windows target in git or GitHub (`main` only)
+- Brand folder mentioned PWA icons but they were never wired
+- Added Electron wrapper (`desktop/main.js`) loading the live web URL
+- Added PWA `manifest.webmanifest` + network-only `sw.js`; deployed
+- GH Action `.github/workflows/desktop-windows.yml` builds NSIS + portable `.exe`
 
 ## Session Chronicle — 2026-07-17
 

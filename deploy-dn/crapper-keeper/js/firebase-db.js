@@ -329,7 +329,7 @@ export async function createPage(sectionId, title = 'Untitled Page', parentPageI
     const ref = await addDoc(collection(db, 'pages'), {
         userId: uid,
         sectionId, parentPageId, title,
-        contentJson: '{}', contentPlain: '',
+        contentJson: '{}', contentPlain: '', contentSource: '', pageMode: 'rich',
         position: Date.now(), isCollapsed: false, treePath: '',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -337,11 +337,13 @@ export async function createPage(sectionId, title = 'Untitled Page', parentPageI
     return ref.id;
 }
 
-export async function savePage(id, { title, contentJson, contentPlain }) {
+export async function savePage(id, { title, contentJson, contentPlain, contentSource, pageMode }) {
     const data = { updatedAt: Timestamp.now() };
     if (title !== undefined) data.title = title;
     if (contentJson !== undefined) data.contentJson = contentJson;
     if (contentPlain !== undefined) data.contentPlain = contentPlain;
+    if (contentSource !== undefined) data.contentSource = contentSource;
+    if (pageMode !== undefined) data.pageMode = pageMode;
     await updateDoc(doc(db, 'pages', id), data);
 }
 

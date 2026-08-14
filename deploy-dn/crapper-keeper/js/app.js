@@ -13,6 +13,17 @@ import {
     initAuth, signInWithGoogle, signInWithApple, signOutUser,
     deleteCurrentAccount, getRuntimePlatform
 } from './firebase-db.js';
+import {
+    escapeHtml,
+    htmlToPlain,
+    markdownToHtml,
+    mountPreview,
+    normalizePageMode,
+    renderHtmlPreview,
+    renderMarkdownPreview,
+    getSourceView,
+    setSourceView,
+} from './render-modes.js';
 
 // ── State ───────────────────────────────────────────────────────────────────
 
@@ -185,9 +196,79 @@ function renderPages() {
     }
 }
 
+function modeSwitcherHtml(mode) {
+    const items = [
+        ['rich', 'Rich'],
+        ['markdown', 'Markdown'],
+        ['html', 'HTML/HTMX'],
+    ];
+    return `<div class="mode-switch" role="tablist" aria-label="Page format">
+        ${items.map(([id, label]) => `
+            <button type="button" class="mode-btn ${mode === id ? 'active' : ''}"
+                    data-page-mode="${id}" role="tab" aria-selected="${mode === id}">${label}</button>
+        `).join('')}
+    </div>`;
+}
+
+function viewSwitcherHtml(view) {
+    const items = [
+        ['source', 'Source'],
+        ['split', 'Split'],
+        ['preview', 'Preview'],
+    ];
+    return `<div class="view-switch" role="tablist" aria-label="Source view">
+        ${items.map(([id, label]) => `
+            <button type="button" class="view-btn ${view === id ? 'active' : ''}"
+                    data-source-view="${id}" role="tab" aria-selected="${view === id}">${label}</button>
+        `).join('')}
+    </div>`;
+}
+
+function richToolbarHtml() {
+    return `
+        <button class="toolbar-btn" data-tiptap="heading" data-level="1">H1</button>
+        <button class="toolbar-btn" data-tiptap="heading" data-level="2">H2</button>
+        <button class="toolbar-btn" data-tiptap="heading" data-level="3">H3</button>
+        <span class="toolbar-separator"></span>
+        <button class="toolbar-btn bold" data-tiptap="bold">B</button>
+        <button class="toolbar-btn italic" data-tiptap="italic">I</button>
+        <button class="toolbar-btn" data-tiptap="underline"><u>U</u></button>
+        <button class="toolbar-btn" data-tiptap="strike"><s>S</s></button>
+        <span class="toolbar-separator"></span>
+        <button class="toolbar-btn" data-tiptap="bulletList">•≡</button>
+        <button class="toolbar-btn" data-tiptap="orderedList">1≡</button>
+        <button class="toolbar-btn" data-tiptap="taskList">☑</button>
+        <span class="toolbar-separator"></span>
+        <button class="toolbar-btn" data-tiptap="table">⊞</button>
+        <button class="toolbar-btn" data-tiptap="blockquote">❝</button>
+        <button class="toolbar-btn" data-tiptap="codeBlock">&lt;/&gt;</button>
+        <span class="toolbar-separator"></span>
+        <button class="toolbar-btn" data-tiptap="horizontalRule">—</button>
+        <button class="toolbar-btn" data-tiptap="link">🔗</button>
+        <button class="toolbar-btn" id="btn-upload-image">🖼</button>`;
+}
+
+function sourceHint(mode) {
+    if (mode === 'html') {
+        return `<span class="mode-hint">Renders HTML + HTMX (<code>hx-*</code>). Scripts and inline handlers are stripped. Paste only content you trust.</span>`;
+    }
+    return `<span class="mode-hint">GitHub-flavored Markdown with live preview.</span>`;
+}
+
+function tipTapLoadContent(page) {
+    const raw = page.contentJson || '';
+    try {
+        const json = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw;
+        if (json && json.type === 'doc') return json;
+    } catch { /* fall through */ }
+    if (page.contentSource) return page.contentSource;
+    return '';
+}
+
 async function renderEditor() {
     const container = document.getElementById('editor-pane');
     if (!state.currentPageId) {
+        if (typeof window.destroyEditor === 'function') window.destroyEditor();
         container.innerHTML = `<div class="empty-state"><div class="empty-inner">
             <h2>Welcome to Crapper Keeper</h2>
             <p>Select a page from the sidebar to get started.</p>
@@ -199,54 +280,140 @@ async function renderEditor() {
     state.currentPage = page;
     if (!page) return;
 
+    const mode = normalizePageMode(page.pageMode);
+    page.pageMode = mode;
     const section = state.sections.find(s => s.id === page.sectionId);
     const sectionColor = section?.color || '#5B9BD5';
+    const view = getSourceView();
+    const isSource = mode === 'markdown' || mode === 'html';
+
+    if (typeof window.destroyEditor === 'function') window.destroyEditor();
 
     container.innerHTML = `
-        <div class="editor-container">
-            <script id="page-content-json" type="application/json">${page.contentJson || '{}'}</script>
-            <h1 id="page-title" class="page-title" contenteditable="true">${page.title || 'Untitled Page'}</h1>
+        <div class="editor-container ${isSource ? 'is-source' : ''} ${view === 'split' && isSource ? 'is-split' : ''}">
+            <h1 id="page-title" class="page-title" contenteditable="true">${escapeHtml(page.title || 'Untitled Page')}</h1>
             <div class="page-accent" style="background:${sectionColor}"></div>
             <div id="editor-toolbar" class="editor-toolbar">
-                <button class="toolbar-btn" data-tiptap="heading" data-level="1">H1</button>
-                <button class="toolbar-btn" data-tiptap="heading" data-level="2">H2</button>
-                <button class="toolbar-btn" data-tiptap="heading" data-level="3">H3</button>
+                ${modeSwitcherHtml(mode)}
                 <span class="toolbar-separator"></span>
-                <button class="toolbar-btn bold" data-tiptap="bold">B</button>
-                <button class="toolbar-btn italic" data-tiptap="italic">I</button>
-                <button class="toolbar-btn" data-tiptap="underline"><u>U</u></button>
-                <button class="toolbar-btn" data-tiptap="strike"><s>S</s></button>
-                <span class="toolbar-separator"></span>
-                <button class="toolbar-btn" data-tiptap="bulletList">•≡</button>
-                <button class="toolbar-btn" data-tiptap="orderedList">1≡</button>
-                <button class="toolbar-btn" data-tiptap="taskList">☑</button>
-                <span class="toolbar-separator"></span>
-                <button class="toolbar-btn" data-tiptap="table">⊞</button>
-                <button class="toolbar-btn" data-tiptap="blockquote">❝</button>
-                <button class="toolbar-btn" data-tiptap="codeBlock">&lt;/&gt;</button>
-                <span class="toolbar-separator"></span>
-                <button class="toolbar-btn" data-tiptap="horizontalRule">—</button>
-                <button class="toolbar-btn" data-tiptap="link">🔗</button>
-                <button class="toolbar-btn" id="btn-upload-image">🖼</button>
+                ${isSource ? viewSwitcherHtml(view) : richToolbarHtml()}
+                ${isSource ? sourceHint(mode) : ''}
             </div>
             <div class="editor-body">
-                <div id="editor-content" data-page-id="${state.currentPageId}"></div>
+                ${isSource ? `
+                    <div class="source-split source-view-${view}">
+                        <textarea id="source-editor" class="source-editor" spellcheck="true"
+                            placeholder="${mode === 'html' ? 'Paste HTML or HTMX…' : 'Write Markdown…'}"></textarea>
+                        <div id="ck-preview" class="ck-preview ${mode === 'html' ? 'ck-preview-html' : 'ck-preview-md'}"></div>
+                    </div>
+                ` : `<div id="editor-content" data-page-id="${state.currentPageId}"></div>`}
             </div>
             <input type="file" id="image-upload-input" accept="image/*" class="hidden">
         </div>`;
 
-    // Update breadcrumb
     const nb = state.notebooks.find(n => n.id === state.currentNotebookId);
     document.getElementById('breadcrumb').textContent =
         `${nb?.title || ''} › ${section?.title || ''} › ${page.title || ''}`;
 
-    // Re-init TipTap
-    if (typeof window.initEditor === 'function') {
-        setTimeout(() => window.initEditor(state.currentPageId), 100);
+    if (mode === 'rich') {
+        if (typeof window.initEditor === 'function') {
+            setTimeout(() => window.initEditor(state.currentPageId, tipTapLoadContent(page)), 50);
+        }
+        setupToolbar();
+    } else {
+        setupSourceEditor(page, mode);
     }
 
-    // Toolbar events
-    setupToolbar();
+    setupModeSwitcher();
+}
+
+function setupModeSwitcher() {
+    document.querySelector('.mode-switch')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-page-mode]');
+        if (!btn) return;
+        switchPageMode(btn.dataset.pageMode);
+    });
+    document.querySelector('.view-switch')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-source-view]');
+        if (!btn) return;
+        const view = btn.dataset.sourceView;
+        setSourceView(view);
+        const wrap = document.querySelector('.editor-container');
+        const split = document.querySelector('.source-split');
+        if (split) split.className = `source-split source-view-${view}`;
+        if (wrap) wrap.classList.toggle('is-split', view === 'split');
+        document.querySelectorAll('.view-btn').forEach((b) => {
+            b.classList.toggle('active', b.dataset.sourceView === view);
+            b.setAttribute('aria-selected', b.dataset.sourceView === view ? 'true' : 'false');
+        });
+    });
+}
+
+function setupSourceEditor(page, mode) {
+    const ta = document.getElementById('source-editor');
+    const preview = document.getElementById('ck-preview');
+    if (!ta) return;
+    ta.value = page.contentSource || '';
+    refreshPreview(ta.value, mode, preview);
+    ta.addEventListener('input', () => {
+        refreshPreview(ta.value, mode, preview);
+        scheduleSourceSave();
+    });
+}
+
+function refreshPreview(src, mode, preview) {
+    const html = mode === 'html' ? renderHtmlPreview(src) : renderMarkdownPreview(src);
+    mountPreview(preview, html, { htmx: mode === 'html' });
+}
+
+function currentSourceText() {
+    return document.getElementById('source-editor')?.value ?? state.currentPage?.contentSource ?? '';
+}
+
+async function switchPageMode(newMode) {
+    newMode = normalizePageMode(newMode);
+    const page = state.currentPage;
+    if (!page || !state.currentPageId) return;
+    const current = normalizePageMode(page.pageMode);
+    if (current === newMode) return;
+
+    let contentSource = page.contentSource || '';
+    let contentJson = page.contentJson || '{}';
+    let contentPlain = page.contentPlain || '';
+
+    if (current === 'rich' && window.currentEditor) {
+        const json = window.currentEditor.getJSON();
+        contentJson = JSON.stringify(json);
+        contentPlain = window.currentEditor.getText();
+        contentSource = newMode === 'html'
+            ? window.currentEditor.getHTML()
+            : jsonToMd(json);
+    } else if (current === 'markdown' || current === 'html') {
+        contentSource = currentSourceText();
+        contentPlain = current === 'html' ? htmlToPlain(contentSource) : contentSource;
+        if (newMode === 'html' && current === 'markdown') {
+            contentSource = markdownToHtml(contentSource);
+        }
+        if (newMode === 'rich') {
+            const html = current === 'markdown' ? markdownToHtml(contentSource) : contentSource;
+            contentJson = '{}';
+            contentSource = html;
+            contentPlain = htmlToPlain(html);
+        }
+    }
+
+    try {
+        await savePage(state.currentPageId, {
+            pageMode: newMode, contentSource, contentJson, contentPlain,
+        });
+        state.currentPage = { ...page, pageMode: newMode, contentSource, contentJson, contentPlain };
+        await renderEditor();
+        markSaved();
+    } catch (error) {
+        console.error('Mode switch save failed:', error);
+        const status = document.getElementById('save-status');
+        if (status) status.textContent = '⚠ Save failed';
+    }
 }
 
 // ── Toolbar ─────────────────────────────────────────────────────────────────
@@ -294,7 +461,20 @@ function setupToolbar() {
 
 // ── Event Handlers ──────────────────────────────────────────────────────────
 
+async function flushUnsaved() {
+    if (!saveDirty || !state.currentPageId) return;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    const mode = normalizePageMode(state.currentPage?.pageMode);
+    if (mode === 'rich' && window.currentEditor) {
+        await window.saveToServer(window.currentEditor);
+    } else if (mode === 'markdown' || mode === 'html') {
+        await saveSourceToServer();
+    }
+}
+
 async function selectNotebook(nbId) {
+    await flushUnsaved();
     state.currentNotebookId = nbId;
     state.currentSectionId = null;
     state.currentPageId = null;
@@ -307,6 +487,7 @@ async function selectNotebook(nbId) {
 }
 
 async function selectSection(sectionId) {
+    await flushUnsaved();
     state.currentSectionId = sectionId;
     state.currentPageId = null;
     state.pages = await getPages(sectionId);
@@ -316,6 +497,7 @@ async function selectSection(sectionId) {
 }
 
 async function selectPage(pageId) {
+    if (pageId !== state.currentPageId) await flushUnsaved();
     state.currentPageId = pageId;
     await renderEditor();
     if (window.matchMedia('(max-width: 700px)').matches) {
@@ -405,22 +587,64 @@ async function handleSearch(e) {
 // ── Auto-save bridge (called by editor.js) ──────────────────────────────────
 
 let saveTimer = null;
+let saveDirty = false;
+
+function markUnsaved() {
+    saveDirty = true;
+    const status = document.getElementById('save-status');
+    if (status) status.textContent = '● Unsaved';
+}
+
+function markSaved() {
+    saveDirty = false;
+    const status = document.getElementById('save-status');
+    if (status) status.textContent = '✓ Saved';
+}
 
 window.onEditorUpdate = function(editor) {
     clearTimeout(saveTimer);
-    const status = document.getElementById('save-status');
-    if (status) status.textContent = '● Unsaved';
+    markUnsaved();
     saveTimer = setTimeout(() => window.saveToServer(editor), 1200);
 };
 
+function scheduleSourceSave() {
+    clearTimeout(saveTimer);
+    markUnsaved();
+    saveTimer = setTimeout(saveSourceToServer, 1200);
+}
+
+async function saveSourceToServer() {
+    if (!state.currentPageId) return;
+    const mode = normalizePageMode(state.currentPage?.pageMode);
+    const contentSource = currentSourceText();
+    const contentPlain = mode === 'html' ? htmlToPlain(contentSource) : contentSource;
+    try {
+        await savePage(state.currentPageId, { contentSource, contentPlain, pageMode: mode });
+        if (state.currentPage) {
+            state.currentPage.contentSource = contentSource;
+            state.currentPage.contentPlain = contentPlain;
+        }
+        markSaved();
+    } catch (error) {
+        const status = document.getElementById('save-status');
+        if (status) status.textContent = '⚠ Save failed';
+        console.error('Save failed:', error);
+    }
+}
+
 window.saveToServer = async function(editor) {
     if (!state.currentPageId) return;
+    const mode = normalizePageMode(state.currentPage?.pageMode);
+    if (mode !== 'rich') {
+        await saveSourceToServer();
+        return;
+    }
+    if (!editor) return;
     const json = JSON.stringify(editor.getJSON());
     const plain = editor.getText();
     try {
-        await savePage(state.currentPageId, { contentJson: json, contentPlain: plain });
-        const status = document.getElementById('save-status');
-        if (status) status.textContent = '✓ Saved';
+        await savePage(state.currentPageId, { contentJson: json, contentPlain: plain, pageMode: 'rich' });
+        markSaved();
     } catch (error) {
         const status = document.getElementById('save-status');
         if (status) status.textContent = '⚠ Save failed';
@@ -799,6 +1023,21 @@ function jsonToMd(obj) {
     }).join('') + '\n';
 }
 
+function pageToMarkdown(page) {
+    const mode = normalizePageMode(page.pageMode);
+    if (mode === 'markdown') return page.contentSource || page.contentPlain || '';
+    if (mode === 'html') {
+        const src = page.contentSource || '';
+        return src ? '```html\n' + src + '\n```\n' : (page.contentPlain || '');
+    }
+    try {
+        const json = JSON.parse(page.contentJson || '{}');
+        return jsonToMd(json);
+    } catch (e) {
+        return page.contentPlain || '';
+    }
+}
+
 async function exportNotebook() {
     if (!state.currentNotebookId) return;
     const nb = state.notebooks.find(n => n.id === state.currentNotebookId);
@@ -807,7 +1046,6 @@ async function exportNotebook() {
     const sections = await getSections(state.currentNotebookId);
     let md = `# ${nb.title}\n\n`;
 
-    // Also get sections in groups
     const groups = await getSectionGroups(state.currentNotebookId);
     for (const sg of groups) {
         const gs = await getSections(state.currentNotebookId, sg.id);
@@ -819,24 +1057,13 @@ async function exportNotebook() {
         const pages = await getPages(section.id);
         for (const page of pages) {
             md += `### ${page.title}\n\n`;
-            try {
-                const json = JSON.parse(page.contentJson || '{}');
-                md += jsonToMd(json);
-            } catch (e) {
-                md += page.contentPlain || '';
-            }
+            md += pageToMarkdown(page);
             md += '\n---\n\n';
 
-            // Subpages
             if (page.subpages) {
                 for (const sub of page.subpages) {
                     md += `#### ${sub.title}\n\n`;
-                    try {
-                        const sj = JSON.parse(sub.contentJson || '{}');
-                        md += jsonToMd(sj);
-                    } catch (e) {
-                        md += sub.contentPlain || '';
-                    }
+                    md += pageToMarkdown(sub);
                     md += '\n';
                 }
             }

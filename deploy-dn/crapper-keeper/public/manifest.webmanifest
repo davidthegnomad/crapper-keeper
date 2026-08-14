@@ -1,0 +1,23 @@
+{
+  "name": "Crapper Keeper",
+  "short_name": "Crapper Keeper",
+  "description": "Get your 💩 together — notes for gnomads.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#2a0a4a",
+  "theme_color": "#2a0a4a",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+appId: com.gnomadstudio.crapperkeeper
+productName: Crapper Keeper
+copyright: Copyright © Gnomad Studio
+directories:
+  output: dist-desktop
+files:
+  - desktop/**
+  - package.json
+extraMetadata:
+  main: desktop/main.js
+win:
+  icon: deploy-dn/crapper-keeper/icons/icon-512.png
+  target:
+    - nsis
+    - portable
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Crapper Keeper
+  artifactName: CrapperKeeper-Setup-${version}.${ext}
+portable:
+  artifactName: CrapperKeeper-Portable-${version}.${ext}
+mac:
+  icon: deploy-dn/crapper-keeper/icons/icon-512.png
+  identity: null
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  artifactName: CrapperKeeper-${version}-arm64.${ext}

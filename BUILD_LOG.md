@@ -310,3 +310,27 @@ bundled locally because Manifest V3 forbids remotely hosted executable code.
 ### 6.7 Release references
 - Native setup and store checklist: `MOBILE_RELEASE.md`
 - Submission sequence and status: `ROADMAP.md`
+
+---
+
+## Phase 7: Markdown + HTML/HTMX rendering (2026-08-14)
+
+- Added page modes: **Rich** (TipTap, default), **Markdown** (GFM + live preview), **HTML/HTMX** (source + HTMX-processed preview)
+- Stored `pageMode` + `contentSource` on Firestore page docs (existing pages stay Rich)
+- Mode switch converts TipTap JSON → Markdown/HTML; Markdown/HTML → TipTap HTML
+- Scripts and inline event handlers stripped; HTMX `hx-*` kept in HTML mode
+- Notebook export includes Markdown source and fences HTML pages
+- Version 1.2.0 — `marked` + `htmx.org` bundled via Vite
+
+---
+
+## Phase 8: Windows desktop + PWA (2026-08-14)
+
+- Audited repo + GitHub: **no** Electron/Tauri/Windows target existed (`main` only)
+- Brand docs mentioned PWA icons; they were never linked
+- Added Electron shell at `desktop/` that loads the live Firebase web app
+- Added `manifest.webmanifest` + network-only `sw.js`; deployed to hosting
+- GitHub Action `.github/workflows/desktop-windows.yml` builds NSIS + portable `.exe`
+- Version 1.3.0
+
+

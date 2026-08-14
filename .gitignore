@@ -27,6 +27,7 @@ Thumbs.db
 # Node
 node_modules/
 dist/
+dist-desktop/
 
 # Backup
 backups/
