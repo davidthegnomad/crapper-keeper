@@ -13,6 +13,7 @@ import {
 import {
     getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject
 } from 'firebase/storage';
+import { pageMatchesQuery } from './search-match.js';
 import {
     getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
     getRedirectResult, signOut, onAuthStateChanged, setPersistence,
@@ -210,24 +211,56 @@ export async function createNotebook(title, opts = {}) {
     return ref.id;
 }
 
-export async function deleteNotebook(id) {
-    const sections = await getSections(id);
-    const batch = writeBatch(db);
-    for (const s of sections) {
-        const pages = await getPages(s.id);
-        for (const p of pages) batch.delete(doc(db, 'pages', p.id));
-        const uid = requireUid();
-        const gq = query(
-            collection(db, 'sectionGroups'),
-            where('userId', '==', uid),
-            where('notebookId', '==', id)
-        );
-        const gs = await getDocs(gq);
-        for (const g of gs.docs) batch.delete(g.ref);
-        batch.delete(doc(db, 'sections', s.id));
+async function commitDeletes(refs) {
+    const unique = [];
+    const seen = new Set();
+    for (const ref of refs) {
+        const key = ref.path;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(ref);
     }
-    batch.delete(doc(db, 'notebooks', id));
-    await batch.commit();
+    for (let i = 0; i < unique.length; i += 400) {
+        const batch = writeBatch(db);
+        for (const ref of unique.slice(i, i + 400)) batch.delete(ref);
+        await batch.commit();
+    }
+}
+
+async function pageRefsForSections(sectionIds) {
+    const uid = requireUid();
+    const snap = await getDocs(query(collection(db, 'pages'), where('userId', '==', uid)));
+    const pages = snap.docs.map((d) => ({ id: d.id, ref: d.ref, ...d.data() }));
+    const wanted = new Set();
+    for (const page of pages) {
+        if (sectionIds.has(page.sectionId)) wanted.add(page.id);
+    }
+    let grew = true;
+    while (grew) {
+        grew = false;
+        for (const page of pages) {
+            if (page.parentPageId && wanted.has(page.parentPageId) && !wanted.has(page.id)) {
+                wanted.add(page.id);
+                grew = true;
+            }
+        }
+    }
+    return pages.filter((page) => wanted.has(page.id)).map((page) => page.ref);
+}
+
+export async function deleteNotebook(id) {
+    const uid = requireUid();
+    const sections = await getSections(id);
+    const refs = await pageRefsForSections(new Set(sections.map((s) => s.id)));
+    for (const s of sections) refs.push(doc(db, 'sections', s.id));
+    const groups = await getDocs(query(
+        collection(db, 'sectionGroups'),
+        where('userId', '==', uid),
+        where('notebookId', '==', id)
+    ));
+    for (const g of groups.docs) refs.push(g.ref);
+    refs.push(doc(db, 'notebooks', id));
+    await commitDeletes(refs);
 }
 
 // ── Sections (Chapters) ─────────────────────────────────────────────────────
@@ -268,12 +301,18 @@ export async function createSection(notebookId, title, groupId = null, color = '
     return ref.id;
 }
 
+export async function getSection(id) {
+    const snap = await getDoc(doc(db, 'sections', id));
+    if (!snap.exists()) return null;
+    const data = { id: snap.id, ...snap.data() };
+    if (data.userId !== requireUid()) return null;
+    return data;
+}
+
 export async function deleteSection(id) {
-    const pages = await getPages(id);
-    const batch = writeBatch(db);
-    for (const p of pages) batch.delete(doc(db, 'pages', p.id));
-    batch.delete(doc(db, 'sections', id));
-    await batch.commit();
+    const refs = await pageRefsForSections(new Set([id]));
+    refs.push(doc(db, 'sections', id));
+    await commitDeletes(refs);
 }
 
 // ── Section Groups ──────────────────────────────────────────────────────────
@@ -349,16 +388,22 @@ export async function savePage(id, { title, contentJson, contentPlain, contentSo
 
 export async function deletePage(id) {
     const uid = requireUid();
-    const sq = query(
-        collection(db, 'pages'),
-        where('userId', '==', uid),
-        where('parentPageId', '==', id)
-    );
-    const subs = await getDocs(sq);
-    const batch = writeBatch(db);
-    for (const s of subs.docs) batch.delete(s.ref);
-    batch.delete(doc(db, 'pages', id));
-    await batch.commit();
+    const refs = [];
+    const stack = [id];
+    const seen = new Set();
+    while (stack.length) {
+        const current = stack.pop();
+        if (!current || seen.has(current)) continue;
+        seen.add(current);
+        const subs = await getDocs(query(
+            collection(db, 'pages'),
+            where('userId', '==', uid),
+            where('parentPageId', '==', current)
+        ));
+        for (const s of subs.docs) stack.push(s.id);
+        refs.push(doc(db, 'pages', current));
+    }
+    await commitDeletes(refs);
 }
 
 export async function movePage(id, position, sectionId = null, parentPageId = null) {
@@ -370,18 +415,40 @@ export async function movePage(id, position, sectionId = null, parentPageId = nu
 
 // ── Search ──────────────────────────────────────────────────────────────────
 
+export { pageMatchesQuery };
+
 export async function searchPages(searchTerm) {
     const uid = requireUid();
-    const term = (searchTerm || '').toLowerCase();
+    const term = String(searchTerm || '').trim();
+    if (!term) return [];
     const q = query(
         collection(db, 'pages'),
-        where('userId', '==', uid),
-        where('contentPlain', '>=', term),
-        where('contentPlain', '<=', term + '\uf8ff'),
-        limit(20)
+        where('userId', '==', uid)
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const hits = [];
+    for (const d of snap.docs) {
+        const page = { id: d.id, ...d.data() };
+        if (pageMatchesQuery(page, term)) hits.push(page);
+        if (hits.length >= 30) break;
+    }
+    return hits;
+}
+
+export async function reorderPositions(collectionName, ids) {
+    const allowed = ['notebooks', 'sections', 'pages'];
+    if (!allowed.includes(collectionName)) throw new Error('Unknown collection');
+    requireUid();
+    const clean = (ids || []).filter(Boolean);
+    if (!clean.length) return;
+    const batch = writeBatch(db);
+    clean.forEach((id, index) => {
+        batch.update(doc(db, collectionName, id), {
+            position: index,
+            updatedAt: Timestamp.now(),
+        });
+    });
+    await batch.commit();
 }
 
 // ── Storage ─────────────────────────────────────────────────────────────────

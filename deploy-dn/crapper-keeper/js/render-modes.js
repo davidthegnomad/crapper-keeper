@@ -9,7 +9,7 @@ import htmx from 'htmx.org';
 marked.setOptions({ gfm: true, breaks: true });
 
 window.htmx = htmx;
-htmx.config.selfRequestsOnly = false;
+htmx.config.selfRequestsOnly = true;
 htmx.config.allowEval = false;
 htmx.config.historyEnabled = false;
 
@@ -57,25 +57,21 @@ export function htmlFragment(src) {
     }
 }
 
+const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href', 'poster']);
+
 /**
- * Strip scripts and inline handlers.
- * Markdown: also drop iframe/object and javascript: URLs.
- * HTML/HTMX: keep hx-* and most tags so HTMX can run.
+ * Saved note HTML cannot run scripts, frame remote sites, or fire HTMX.
+ * allowHtmx is ignored — hx-* is always removed.
  */
-export function sanitizeHtml(html, { allowHtmx = false } = {}) {
+export function sanitizeHtml(html, _opts = {}) {
     const wrap = document.createElement('div');
     wrap.innerHTML = htmlFragment(html);
-    wrap.querySelectorAll('script,object,embed,link[rel="import"]').forEach((el) => el.remove());
-    if (!allowHtmx) {
-        wrap.querySelectorAll('iframe,form').forEach((el) => el.remove());
-    }
+    wrap.querySelectorAll('script, iframe, object, embed').forEach((el) => el.remove());
     wrap.querySelectorAll('*').forEach((el) => {
         [...el.attributes].forEach((a) => {
             const name = a.name.toLowerCase();
-            if (name.startsWith('on')) el.removeAttribute(a.name);
-            if (!allowHtmx && name.startsWith('hx-')) el.removeAttribute(a.name);
-            if ((name === 'href' || name === 'src' || name === 'xlink:href') &&
-                /^\s*javascript:/i.test(a.value)) {
+            if (name.startsWith('on') || name.startsWith('hx-')) el.removeAttribute(a.name);
+            if (URL_ATTRS.has(name) && /^\s*javascript:/i.test(a.value)) {
                 el.removeAttribute(a.name);
             }
         });
@@ -88,15 +84,12 @@ export function renderMarkdownPreview(src) {
 }
 
 export function renderHtmlPreview(src) {
-    return sanitizeHtml(src, { allowHtmx: true });
+    return sanitizeHtml(src);
 }
 
-export function mountPreview(el, html, { htmx: useHtmx = false } = {}) {
+export function mountPreview(el, html) {
     if (!el) return;
     el.innerHTML = html || '<p class="ck-preview-empty">Nothing to preview yet.</p>';
-    if (useHtmx && window.htmx) {
-        window.htmx.process(el);
-    }
 }
 
 export function getSourceView() {

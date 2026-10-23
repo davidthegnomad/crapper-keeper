@@ -2,7 +2,7 @@
 {% if current_page %}
 <div class="editor-container">
     <!-- Hidden content for TipTap rehydration -->
-    <script id="page-content-json" type="application/json">{{ current_page.content_json | safe }}</script>
+    <script id="page-content-json" type="application/json">{{ current_page.content_json | embed_json }}</script>
 
     <!-- Page Title -->
     <h1 id="page-title" class="page-title"

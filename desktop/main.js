@@ -6,7 +6,7 @@
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('node:path');
 
-const START_URL = 'https://davidthegnomadorg.web.app/crapper-keeper/';
+const START_URL = process.env.CK_START_URL || 'https://davidthegnomadorg.web.app/crapper-keeper/';
 
 function isOAuthPopup(url) {
     try {

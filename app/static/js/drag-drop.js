@@ -1,63 +1,68 @@
 /**
  * Crapper Keeper — Drag & Drop
- * SortableJS integration for pages and sections.
+ * SortableJS integration for notebooks, pages, and sections.
  */
 
-// ── Page reorder ─────────────────────────────────────────────────────────────
+function postJSON(url, body) {
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+}
 
 function initPageDrag() {
     const container = document.getElementById('page-list-sortable');
-    if (!container || typeof Sortable === 'undefined') return;
+    if (!container || container.dataset.dnd || typeof Sortable === 'undefined') return;
+    container.dataset.dnd = '1';
 
     new Sortable(container, {
         animation: 150,
         ghostClass: 'bg-blue-100',
         handle: '.drag-handle',
-        onEnd: async function (evt) {
-            const pageId = evt.item.dataset.pageId;
-            const newIndex = evt.newIndex;
-            const newParentId = evt.item.dataset.parentPageId || null;
-            const parentContainer = evt.item.parentElement;
-            const parentPageId = parentContainer?.dataset?.parentPageId || null;
-
-            try {
-                await fetch(`/pages/${pageId}/move`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        position: newIndex,
-                        parent_page_id: parentPageId || '',
-                    }),
-                });
-            } catch (e) {
-                console.error('Reorder failed:', e);
-            }
+        draggable: '[data-page-id]',
+        onEnd: function () {
+            const ids = [...container.querySelectorAll(':scope > [data-page-id]')].map((el) => el.dataset.pageId);
+            postJSON('/pages/reorder', { ids }).catch((e) => console.error('Reorder failed:', e));
         },
     });
 }
 
-// ── Section reorder ──────────────────────────────────────────────────────────
-
 function initSectionDrag() {
-    const container = document.getElementById('section-list-sortable');
-    if (!container || typeof Sortable === 'undefined') return;
+    if (typeof Sortable === 'undefined') return;
+    document.querySelectorAll('.section-list-sortable').forEach((container) => {
+        if (container.dataset.dnd) return;
+        container.dataset.dnd = '1';
+        const notebookId = container.dataset.notebookId;
+        new Sortable(container, {
+            animation: 150,
+            ghostClass: 'bg-blue-100',
+            handle: '.section-drag-handle',
+            draggable: '[data-section-id]',
+            onEnd: function () {
+                const ids = [...container.querySelectorAll(':scope > [data-section-id]')].map((el) => el.dataset.sectionId);
+                postJSON(`/notebooks/${notebookId}/sections/reorder`, { ids })
+                    .catch((e) => console.error('Section reorder failed:', e));
+            },
+        });
+    });
+}
 
+function initNotebookDrag() {
+    const container = document.querySelector('.tk-tabs-container');
+    if (!container || container.dataset.dnd || typeof Sortable === 'undefined') return;
+    container.dataset.dnd = '1';
     new Sortable(container, {
         animation: 150,
-        ghostClass: 'bg-blue-100',
-        handle: '.section-drag-handle',
-        onEnd: async function (evt) {
-            const sectionId = evt.item.dataset.sectionId;
-            const newIndex = evt.newIndex;
-
+        handle: '.nb-drag-handle',
+        draggable: 'a.tk-tab[data-notebook-id]',
+        onEnd: async function () {
+            const ids = [...container.querySelectorAll('a.tk-tab[data-notebook-id]')].map((el) => el.dataset.notebookId);
             try {
-                await fetch(`/notebooks/${evt.item.dataset.notebookId}/sections/${sectionId}/move`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ position: newIndex }),
-                });
+                await postJSON('/notebooks/reorder', { ids });
+                window.location.reload();
             } catch (e) {
-                console.error('Section reorder failed:', e);
+                console.error('Notebook reorder failed:', e);
             }
         },
     });
@@ -66,9 +71,11 @@ function initSectionDrag() {
 document.addEventListener('DOMContentLoaded', () => {
     initPageDrag();
     initSectionDrag();
+    initNotebookDrag();
 });
 
 document.body.addEventListener('htmx:afterSwap', () => {
     initPageDrag();
     initSectionDrag();
+    initNotebookDrag();
 });

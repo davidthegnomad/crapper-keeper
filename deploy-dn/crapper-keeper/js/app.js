@@ -5,8 +5,8 @@
 
 import './editor.js';
 import {
-    getNotebooks, createNotebook,
-    getSections, createSection,
+    getNotebooks, createNotebook, deleteNotebook,
+    getSections, getSection, createSection, deleteSection,
     getSectionGroups,
     getPages, getPage, createPage, savePage, deletePage, movePage,
     searchPages, uploadImage, seedIfEmpty,
@@ -24,6 +24,7 @@ import {
     getSourceView,
     setSourceView,
 } from './render-modes.js';
+import { initNavDnD } from './nav-dnd.js';
 
 // ── State ───────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ function renderNotebookTabs() {
             <input type="text" id="seed-notebook" placeholder="First notebook..." autofocus
                    style="width:100%;padding:4px 8px;border:1px solid var(--border-default);border-radius:4px;font-size:11px;outline:none;">
         </div>`;
+        wireDnD();
         return;
     }
     container.innerHTML = state.notebooks.map((nb, i) => {
@@ -86,13 +88,16 @@ function renderNotebookTabs() {
         return `
         <a href="#" class="tk-tab tk-tab-${i + 1} ${nb.id === state.currentNotebookId ? 'tk-tab-active' : ''}"
            style="--tab-color:var(--tk-${slot});--tab-index:${i + 1}"
-           data-nb-id="${nb.id}" title="${nb.title}">
-            <span class="tk-tab-label">${nb.title}</span>
+           data-nb-id="${escapeHtml(nb.id)}" title="${escapeHtml(nb.title)}">
+            <span class="drag-handle nb-drag-handle">⋮⋮</span>
+            <span class="tk-tab-label">${escapeHtml(nb.title)}</span>
+            <button type="button" class="row-delete" data-delete-nb="${escapeHtml(nb.id)}" title="Delete notebook">×</button>
         </a>`;
     }).join('') + `
         <button type="button" class="tk-tab tk-tab-add" id="btn-add-nb"
                 style="position:absolute;top:${state.notebooks.length * 88 + 16}px;left:0;font-size:16px;padding-left:10px;min-width:30px;"
                 title="New notebook">+</button>`;
+    wireDnD();
 }
 
 function renderSections() {
@@ -102,6 +107,7 @@ function renderSections() {
     if (!state.currentNotebookId) {
         container.innerHTML = `<div style="padding:6px 12px;font-size:11px;color:var(--text-tertiary);font-style:italic;">Select a notebook</div>`;
         if (addForm) addForm.innerHTML = '';
+        wireDnD();
         return;
     }
 
@@ -117,9 +123,9 @@ function renderSections() {
                     <div class="section-group-header"
                          _="on click toggle .hidden on next <div/>
                             if my firstChild.innerText == '▸' then set my firstChild.innerText to '▾' else set my firstChild.innerText to '▸' end">
-                        <span>▸</span><span>${sg.title}</span>
+                        <span>▸</span><span>${escapeHtml(sg.title)}</span>
                     </div>
-                    <div class="hidden">
+                    <div class="hidden section-dnd-list">
                         ${groupSections.map(s => renderSectionItem(s)).join('')}
                     </div>
                 </div>`;
@@ -128,7 +134,7 @@ function renderSections() {
 
         // Top-level sections
         const topSections = state.sections.filter(s => !s.sectionGroupId);
-        html += topSections.map(s => renderSectionItem(s)).join('');
+        html += `<div class="section-dnd-list">${topSections.map(s => renderSectionItem(s)).join('')}</div>`;
         container.innerHTML = html;
     }
 
@@ -136,15 +142,17 @@ function renderSections() {
         addForm.innerHTML = `<input type="text" id="input-new-section" placeholder="+ Chapter"
             style="width:calc(100% - 16px);margin:4px 8px;padding:5px 10px;border:1px solid var(--border-default);border-radius:6px;background:var(--surface-white);font-size:11px;outline:none;">`;
     }
+    wireDnD();
 }
 
 function renderSectionItem(s) {
-    return `<div class="section-item-row" data-section-id="${s.id}">
+    return `<div class="section-item-row section-dnd-item" data-section-id="${escapeHtml(s.id)}">
         <span class="drag-handle section-drag-handle">⋮⋮</span>
         <a href="#" class="section-item flex-1 ${s.id === state.currentSectionId ? 'active' : ''}"
-           style="border-left-color:${s.color||'#5B9BD5'}" data-section-id="${s.id}">
-            ${s.title}
+           style="border-left-color:${s.color||'#5B9BD5'}" data-section-id="${escapeHtml(s.id)}">
+            ${escapeHtml(s.title)}
         </a>
+        <button type="button" class="row-delete" data-delete-section="${escapeHtml(s.id)}" title="Delete section">×</button>
     </div>`;
 }
 
@@ -155,6 +163,7 @@ function renderPages() {
     if (!state.currentSectionId) {
         container.innerHTML = `<div style="padding:6px 12px;font-size:11px;color:var(--text-tertiary);font-style:italic;">Select a chapter</div>`;
         if (addForm) addForm.innerHTML = '';
+        wireDnD();
         return;
     }
 
@@ -163,24 +172,26 @@ function renderPages() {
     } else {
         let html = '';
         for (const p of state.pages) {
-            html += `<div data-page-id="${p.id}">
+            html += `<div class="page-dnd-item" data-page-id="${escapeHtml(p.id)}">
                 <div class="page-item-row">
-                    <span class="drag-handle">⋮⋮</span>
+                    <span class="drag-handle page-drag-handle">⋮⋮</span>
                     ${p.subpages?.length ? `<span class="page-collapse-btn"
                         _="on click halt the event then toggle .hidden on the next <div/> then
                            if my innerText == '▸' set my innerText to '▾' else set my innerText to '▸' end">▸</span>` : `<span style="width:18px;"></span>`}
                     <a href="#" class="page-item ${p.id === state.currentPageId ? 'active' : ''}"
-                       data-page-id="${p.id}">${p.title}</a>
+                       data-page-id="${escapeHtml(p.id)}">${escapeHtml(p.title)}</a>
+                    <button type="button" class="row-delete" data-delete-page="${escapeHtml(p.id)}" title="Delete page">×</button>
                 </div>`;
             if (p.subpages?.length) {
                 html += `<div class="hidden">`;
                 for (const sub of p.subpages) {
-                    html += `<div data-page-id="${sub.id}">
+                    html += `<div data-page-id="${escapeHtml(sub.id)}">
                         <div class="page-item-row">
                             <span class="drag-handle">⋮⋮</span>
                             <span style="width:18px;"></span>
                             <a href="#" class="page-item subpage ${sub.id === state.currentPageId ? 'active' : ''}"
-                               data-page-id="${sub.id}">${sub.title}</a>
+                               data-page-id="${escapeHtml(sub.id)}">${escapeHtml(sub.title)}</a>
+                            <button type="button" class="row-delete" data-delete-page="${escapeHtml(sub.id)}" title="Delete page">×</button>
                         </div></div>`;
                 }
                 html += `</div>`;
@@ -194,6 +205,27 @@ function renderPages() {
         addForm.innerHTML = `<input type="text" id="input-new-page" placeholder="+ Page"
             style="width:calc(100% - 16px);margin:4px 8px;padding:5px 10px;border:1px solid var(--border-default);border-radius:6px;background:var(--surface-white);font-size:11px;outline:none;">`;
     }
+    wireDnD();
+}
+
+function wireDnD() {
+    initNavDnD({
+        refreshNotebooks: async () => {
+            state.notebooks = await getNotebooks();
+            renderNotebookTabs();
+        },
+        refreshSections: async () => {
+            if (!state.currentNotebookId) return;
+            state.sections = await getSections(state.currentNotebookId);
+            state.groups = await getSectionGroups(state.currentNotebookId);
+            renderSections();
+        },
+        refreshPages: async () => {
+            if (!state.currentSectionId) return;
+            state.pages = await getPages(state.currentSectionId);
+            renderPages();
+        },
+    });
 }
 
 function modeSwitcherHtml(mode) {
@@ -250,7 +282,7 @@ function richToolbarHtml() {
 
 function sourceHint(mode) {
     if (mode === 'html') {
-        return `<span class="mode-hint">Renders HTML + HTMX (<code>hx-*</code>). Scripts and inline handlers are stripped. Paste only content you trust.</span>`;
+        return `<span class="mode-hint">Renders HTML. Scripts, frames, and HTMX attributes are removed.</span>`;
     }
     return `<span class="mode-hint">GitHub-flavored Markdown with live preview.</span>`;
 }
@@ -473,6 +505,11 @@ async function flushUnsaved() {
     }
 }
 
+window.addEventListener('pagehide', () => { flushUnsaved(); });
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushUnsaved();
+});
+
 async function selectNotebook(nbId) {
     await flushUnsaved();
     state.currentNotebookId = nbId;
@@ -502,6 +539,69 @@ async function selectPage(pageId) {
     await renderEditor();
     if (window.matchMedia('(max-width: 700px)').matches) {
         document.querySelector('.sidebar')?.classList.add('hidden');
+    }
+}
+
+async function deleteNotebookById(id) {
+    if (!id || !window.confirm('Delete this notebook and all of its pages?')) return;
+    await flushUnsaved();
+    await deleteNotebook(id);
+    if (state.currentNotebookId === id) {
+        state.currentNotebookId = null;
+        state.currentSectionId = null;
+        state.currentPageId = null;
+        state.currentPage = null;
+        state.sections = [];
+        state.pages = [];
+    }
+    state.notebooks = await getNotebooks();
+    if (!state.currentNotebookId && state.notebooks[0]) {
+        await selectNotebook(state.notebooks[0].id);
+        return;
+    }
+    renderNotebookTabs();
+    renderSections();
+    renderPages();
+    await renderEditor();
+}
+
+async function deleteSectionById(id) {
+    if (!id || !window.confirm('Delete this section and its pages?')) return;
+    await flushUnsaved();
+    await deleteSection(id);
+    if (state.currentSectionId === id) {
+        state.currentSectionId = null;
+        state.currentPageId = null;
+        state.currentPage = null;
+        state.pages = [];
+    }
+    if (!state.currentNotebookId) return;
+    state.sections = await getSections(state.currentNotebookId);
+    if (!state.currentSectionId && state.sections[0]) {
+        await selectSection(state.sections[0].id);
+        return;
+    }
+    renderSections();
+    renderPages();
+    await renderEditor();
+}
+
+async function deletePageById(id) {
+    if (!id || !window.confirm('Delete this page?')) return;
+    if (state.currentPageId !== id) await flushUnsaved();
+    else {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        saveDirty = false;
+    }
+    await deletePage(id);
+    if (!state.currentSectionId) return;
+    state.pages = await getPages(state.currentSectionId);
+    renderPages();
+    if (state.currentPageId === id) {
+        state.currentPageId = state.pages[0]?.id || null;
+        state.currentPage = null;
+        await renderEditor();
     }
 }
 
@@ -574,9 +674,9 @@ async function handleSearch(e) {
         container.innerHTML = `<div style="padding:12px;font-size:13px;color:var(--text-tertiary);text-align:center;">No results</div>`;
     } else {
         container.innerHTML = results.map(r => {
-            const plain = (r.contentPlain || '').substring(0, 120);
-            return `<a href="#" class="search-result-item" data-page-id="${r.id}">
-                <div class="search-result-title">${r.title || 'Untitled'}</div>
+            const plain = escapeHtml((r.contentPlain || '').substring(0, 120));
+            return `<a href="#" class="search-result-item" data-page-id="${escapeHtml(r.id)}">
+                <div class="search-result-title">${escapeHtml(r.title || 'Untitled')}</div>
                 <div class="search-result-snippet">${plain}</div>
             </a>`;
         }).join('');
@@ -792,6 +892,13 @@ async function init() {
 
     // Event delegation (tabs are re-rendered — don't bind to ephemeral nodes)
     document.querySelector('.tk-strip').addEventListener('click', async (e) => {
+        const delNb = e.target.closest('[data-delete-nb]');
+        if (delNb) {
+            e.preventDefault();
+            e.stopPropagation();
+            await deleteNotebookById(delNb.dataset.deleteNb);
+            return;
+        }
         const addBtn = e.target.closest('#btn-add-nb, .tk-tab-add');
         if (addBtn) {
             e.preventDefault();
@@ -809,6 +916,13 @@ async function init() {
     });
 
     document.getElementById('section-list').addEventListener('click', async (e) => {
+        const del = e.target.closest('[data-delete-section]');
+        if (del) {
+            e.preventDefault();
+            e.stopPropagation();
+            await deleteSectionById(del.dataset.deleteSection);
+            return;
+        }
         const item = e.target.closest('[data-section-id]');
         if (item) await selectSection(item.dataset.sectionId);
     });
@@ -817,6 +931,13 @@ async function init() {
     });
 
     document.getElementById('page-list').addEventListener('click', async (e) => {
+        const del = e.target.closest('[data-delete-page]');
+        if (del) {
+            e.preventDefault();
+            e.stopPropagation();
+            await deletePageById(del.dataset.deletePage);
+            return;
+        }
         const item = e.target.closest('[data-page-id]');
         if (item) await selectPage(item.dataset.pageId);
     });
@@ -836,18 +957,17 @@ async function init() {
     document.getElementById('search-results')?.addEventListener('click', async (e) => {
         const item = e.target.closest('[data-page-id]');
         if (!item) return;
-        const section = state.sections.find(s => s.id === state.currentSectionId);
-        // Find which section the page belongs to
+        e.preventDefault();
         const page = await getPage(item.dataset.pageId);
         if (page) {
-            // Switch to that section first
-            await selectNotebook(state.currentNotebookId);
-            state.currentSectionId = page.sectionId;
-            state.pages = await getPages(page.sectionId);
-            renderSections();
-            renderPages();
-            state.currentPageId = item.dataset.pageId;
-            await renderEditor();
+            const section = await getSection(page.sectionId);
+            if (section?.notebookId && section.notebookId !== state.currentNotebookId) {
+                await selectNotebook(section.notebookId);
+            }
+            if (page.sectionId && page.sectionId !== state.currentSectionId) {
+                await selectSection(page.sectionId);
+            }
+            await selectPage(page.id);
         }
         document.getElementById('search-results').classList.add('hidden');
     });

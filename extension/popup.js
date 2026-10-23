@@ -1,5 +1,13 @@
 const $ = (id) => document.getElementById(id);
 
+function escapeHtml(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 function setStatus(msg) {
     $('status').textContent = msg || '';
 }
@@ -26,7 +34,9 @@ function renderNotebooks(notebooks) {
         return;
     }
 
-    nbSel.innerHTML = notebooks.map(nb => `<option value="${nb.id}">${nb.title}</option>`).join('');
+    nbSel.innerHTML = notebooks.map(nb =>
+        `<option value="${escapeHtml(nb.id)}">${escapeHtml(nb.title)}</option>`
+    ).join('');
 
     function updateSections(nbId) {
         const nb = notebooks.find(n => n.id === nbId);
@@ -34,7 +44,9 @@ function renderNotebooks(notebooks) {
             secSel.innerHTML = '<option>No chapters</option>';
             return;
         }
-        secSel.innerHTML = nb.sections.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+        secSel.innerHTML = nb.sections.map(s =>
+            `<option value="${escapeHtml(s.id)}">${escapeHtml(s.title)}</option>`
+        ).join('');
     }
 
     nbSel.onchange = () => updateSections(nbSel.value);

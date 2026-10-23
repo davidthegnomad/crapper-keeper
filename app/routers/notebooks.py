@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db
 from app.models import Notebook
 from app.utils import templates
+from app.utils.deletes import delete_notebook_record
+from app.utils.htmx import inline_error, nav_or_redirect
 
 router = APIRouter(prefix="/notebooks", tags=["notebooks"])
 
@@ -22,7 +24,23 @@ async def landing(request: Request, db: Session = Depends(get_db)):
              "sections": [], "current_section": None,
              "pages": [], "current_page": None}
         )
-    return RedirectResponse(url=f"/notebooks/{notebook.id}", status_code=302)
+    return nav_or_redirect(request, f"/notebooks/{notebook.id}")
+
+
+@router.post("/reorder")
+async def reorder_notebooks(request: Request, db: Session = Depends(get_db)):
+    body = await request.json()
+    ids = body.get("ids") or []
+    for index, raw in enumerate(ids):
+        try:
+            notebook_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        nb = db.query(Notebook).filter_by(id=notebook_id).first()
+        if nb:
+            nb.position = index
+    db.commit()
+    return {"status": "ok"}
 
 
 # ── View notebook ─────────────────────────────────────────────────────────────
@@ -65,8 +83,11 @@ async def view_notebook(request: Request, notebook_id: int, db: Session = Depend
 # ── CRUD partials ─────────────────────────────────────────────────────────────
 
 @router.post("/", response_class=HTMLResponse)
-async def create_notebook(request: Request, title: str = Form(...), db: Session = Depends(get_db)):
+async def create_notebook(request: Request, title: str = Form(""), db: Session = Depends(get_db)):
     """Create a new notebook — re-render the notebook list in sidebar."""
+    title = (title or "").strip()
+    if not title:
+        return inline_error("Name your notebook first.")
     max_pos = db.query(Notebook).order_by(Notebook.position.desc()).first()
     pos = (max_pos.position + 1) if max_pos else 0
     nb = Notebook(title=title, position=pos)
@@ -74,8 +95,7 @@ async def create_notebook(request: Request, title: str = Form(...), db: Session 
     db.commit()
     db.refresh(nb)
 
-    # Return the full page for the new notebook
-    return RedirectResponse(url=f"/notebooks/{nb.id}", status_code=302)
+    return nav_or_redirect(request, f"/notebooks/{nb.id}")
 
 
 @router.put("/{notebook_id}", response_class=HTMLResponse)
@@ -94,10 +114,10 @@ async def rename_notebook(request: Request, notebook_id: int, title: str = Form(
 async def delete_notebook(request: Request, notebook_id: int, db: Session = Depends(get_db)):
     nb = db.query(Notebook).filter_by(id=notebook_id).first()
     if nb:
-        db.delete(nb)
+        delete_notebook_record(db, nb)
         db.commit()
 
     remaining = db.query(Notebook).order_by(Notebook.id).first()
     if remaining:
-        return RedirectResponse(url=f"/notebooks/{remaining.id}", status_code=302)
-    return RedirectResponse(url="/notebooks/", status_code=302)
+        return nav_or_redirect(request, f"/notebooks/{remaining.id}")
+    return nav_or_redirect(request, "/notebooks/")

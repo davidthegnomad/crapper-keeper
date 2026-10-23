@@ -22,10 +22,12 @@ const TOKEN_REFRESH = `https://securetoken.googleapis.com/v1/token?key=${API_KEY
 // ── Context menus ─────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.contextMenus.create({ id: 'ck-save-page', title: 'Save to Crapper Keeper', contexts: ['page'] });
-    chrome.contextMenus.create({ id: 'ck-save-selection', title: 'Save selection to CK', contexts: ['selection'] });
-    chrome.contextMenus.create({ id: 'ck-save-image', title: 'Save image to CK', contexts: ['image'] });
-    chrome.contextMenus.create({ id: 'ck-save-link', title: 'Save link to CK', contexts: ['link'] });
+    chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({ id: 'ck-save-page', title: 'Save to Crapper Keeper', contexts: ['page'] });
+        chrome.contextMenus.create({ id: 'ck-save-selection', title: 'Save selection to CK', contexts: ['selection'] });
+        chrome.contextMenus.create({ id: 'ck-save-image', title: 'Save image to CK', contexts: ['image'] });
+        chrome.contextMenus.create({ id: 'ck-save-link', title: 'Save link to CK', contexts: ['link'] });
+    });
 });
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
@@ -212,6 +214,28 @@ async function getDefaultTarget({ idToken, uid }) {
 
 // ── TipTap doc builder (keeps full content, not just first line) ─────────────────
 
+function joinClip(title, url, excerpt) {
+    const parts = [];
+    if (title) parts.push(String(title));
+    if (url) parts.push(String(url));
+    const extra = (excerpt || '').trim();
+    if (extra) parts.push(extra);
+    return parts.join('\n\n');
+}
+
+async function readExcerpt(tabId) {
+    if (!tabId || !chrome.scripting?.executeScript) return '';
+    try {
+        const injected = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: () => ((document.body && document.body.innerText) || '').replace(/\s+/g, ' ').trim().slice(0, 700),
+        });
+        return (injected && injected[0] && injected[0].result) || '';
+    } catch (e) {
+        return '';
+    }
+}
+
 function buildDoc(text) {
     const lines = (text || '').split('\n');
     return {
@@ -264,13 +288,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     let contentPlain = '';
 
     switch (info.menuItemId) {
-        case 'ck-save-page':
-            title = tab?.title || url;
-            contentPlain = `${title}\n${url}`;
+        case 'ck-save-page': {
+            title = tab?.title || 'Saved page';
+            const excerpt = (info.selectionText || '').trim() || await readExcerpt(tab?.id);
+            contentPlain = joinClip(title, url, excerpt);
             break;
+        }
         case 'ck-save-selection':
             title = tab?.title || 'Selection';
-            contentPlain = `"${info.selectionText || ''}"\n\nFrom: ${title}\n${url}`;
+            contentPlain = joinClip(title, url, info.selectionText || '');
             break;
         case 'ck-save-image':
             title = 'Image: ' + (info.srcUrl?.split('/').pop() || 'untitled');

@@ -594,3 +594,5 @@ html.dark .account-menu .account-menu-link:hover{color:var(--vw-cyan,#00e5ff)}
     .ProseMirror{font-size:16px;min-height:50vh}
     .status-bar{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
 }
+.row-delete{border:0;background:transparent;color:var(--text-tertiary);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}
+.tk-tab .row-delete{writing-mode:horizontal-tb;font-size:12px;color:#fff}

@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Request, Depends, Form, Path
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.dependencies import get_db
 from app.models import Section, Page, SectionGroup, Notebook
 from app.utils import templates
+from app.utils.deletes import delete_section_record
+from app.utils.htmx import inline_error, nav_or_redirect
 
 router = APIRouter(prefix="/notebooks/{notebook_id}/sections", tags=["sections"])
 
@@ -39,9 +41,12 @@ async def view_section(request: Request, notebook_id: int, section_id: int, db: 
 
 
 @router.post("/", response_class=HTMLResponse)
-async def create_section(request: Request, notebook_id: int, title: str = Form(...),
+async def create_section(request: Request, notebook_id: int, title: str = Form(""),
                          group_id: int = Form(None), color: str = Form("#5B9BD5"),
                          db: Session = Depends(get_db)):
+    title = (title or "").strip()
+    if not title:
+        return inline_error("Name this section first.")
     max_pos = db.query(Section).filter_by(notebook_id=notebook_id).order_by(Section.position.desc()).first()
     pos = (max_pos.position + 1) if max_pos else 0
     s = Section(notebook_id=notebook_id, section_group_id=group_id, title=title,
@@ -56,7 +61,7 @@ async def create_section(request: Request, notebook_id: int, title: str = Form(.
     db.add(p)
     db.commit()
 
-    return RedirectResponse(url=f"/notebooks/{notebook_id}/sections/{s.id}", status_code=302)
+    return nav_or_redirect(request, f"/notebooks/{notebook_id}/sections/{s.id}")
 
 
 @router.put("/{section_id}", response_class=HTMLResponse)
@@ -74,15 +79,31 @@ async def rename_section(request: Request, notebook_id: int, section_id: int,
 
 @router.delete("/{section_id}", response_class=HTMLResponse)
 async def delete_section(request: Request, notebook_id: int, section_id: int, db: Session = Depends(get_db)):
-    s = db.query(Section).filter_by(id=section_id).first()
+    s = db.query(Section).filter_by(id=section_id, notebook_id=notebook_id).first()
     if s:
-        db.delete(s)
+        delete_section_record(db, s)
         db.commit()
 
     remaining = db.query(Section).filter_by(notebook_id=notebook_id).order_by(Section.id).first()
     if remaining:
-        return RedirectResponse(url=f"/notebooks/{notebook_id}/sections/{remaining.id}", status_code=302)
-    return RedirectResponse(url=f"/notebooks/{notebook_id}", status_code=302)
+        return nav_or_redirect(request, f"/notebooks/{notebook_id}/sections/{remaining.id}")
+    return nav_or_redirect(request, f"/notebooks/{notebook_id}")
+
+
+@router.post("/reorder")
+async def reorder_sections(request: Request, notebook_id: int, db: Session = Depends(get_db)):
+    body = await request.json()
+    ids = body.get("ids") or []
+    for index, raw in enumerate(ids):
+        try:
+            section_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        section = db.query(Section).filter_by(id=section_id, notebook_id=notebook_id).first()
+        if section:
+            section.position = index
+    db.commit()
+    return JSONResponse({"status": "ok"})
 
 
 @router.post("/{section_id}/move", response_class=HTMLResponse)

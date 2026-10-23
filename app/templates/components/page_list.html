@@ -21,6 +21,9 @@
                        class="page-item {% if current_page and current_page.id == page.id %}active{% endif %}">
                         {{ page.title }}
                     </a>
+                    <span role="button" class="row-delete" title="Delete page"
+                          hx-delete="/pages/{{ page.id }}"
+                          hx-confirm="Delete this page?">×</span>
                 </div>
                 {% if subpages %}
                 <div class="hidden">
@@ -33,6 +36,9 @@
                                class="page-item subpage {% if current_page and current_page.id == sub.id %}active{% endif %}">
                                 {{ sub.title }}
                             </a>
+                            <span role="button" class="row-delete" title="Delete page"
+                                  hx-delete="/pages/{{ sub.id }}"
+                                  hx-confirm="Delete this page?">×</span>
                         </div>
                     </div>
                     {% endfor %}
@@ -43,10 +49,11 @@
         </div>
 
         <!-- Quick Add Page -->
-        <form hx-post="/pages/" hx-target="body" class="page-add-form" style="margin-top:4px;">
+        <form hx-post="/pages/" hx-target="#page-create-error" hx-swap="innerHTML" class="page-add-form" style="margin-top:4px;">
             <input type="hidden" name="section_id" value="{{ current_section.id }}">
             <input type="text" name="title" placeholder="+ Page">
         </form>
+        <p id="page-create-error" class="form-error"></p>
     {% else %}
         <div style="padding:6px 12px;font-size:var(--text-xs);color:var(--text-tertiary);font-style:italic;">
             Select a section

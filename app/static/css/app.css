@@ -198,6 +198,9 @@ input{font-family:inherit}
 .drag-handle{opacity:0;cursor:grab;color:var(--text-tertiary);font-size:11px;padding:0 2px;transition:opacity .15s;flex-shrink:0}
 .section-item-row:hover .drag-handle,
 .page-item-row:hover .drag-handle{opacity:.6}
+.form-error{color:#b42318;font-size:12px;padding:2px 8px}
+.row-delete{border:0;background:transparent;color:var(--text-tertiary);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}
+.tk-tab .row-delete{writing-mode:horizontal-tb;font-size:12px;color:#fff}
 
 /* Resizer */
 .resizer{width:3px;cursor:col-resize;background:transparent;transition:background .15s;flex-shrink:0}

@@ -5,6 +5,8 @@ from typing import Optional
 from app.dependencies import get_db
 from app.models import Page, Section, Notebook, SectionGroup
 from app.utils import templates
+from app.utils.deletes import delete_page_tree
+from app.utils.htmx import nav_or_redirect
 from app.utils.prose_mirror import generate_derived
 import json
 
@@ -38,11 +40,12 @@ async def view_page(request: Request, page_id: int, db: Session = Depends(get_db
 
 
 @router.post("/", response_class=HTMLResponse)
-async def create_page(request: Request, section_id: int = Form(...), title: str = Form("Untitled Page"),
+async def create_page(request: Request, section_id: int = Form(...), title: str = Form(""),
                       parent_page_id: Optional[int] = Form(None), db: Session = Depends(get_db)):
     section = db.query(Section).filter_by(id=section_id).first()
     if not section:
         return HTMLResponse("Section not found", status_code=404)
+    title = (title or "").strip() or "Untitled Page"
 
     if parent_page_id:
         max_pos = db.query(Page).filter_by(parent_page_id=parent_page_id).order_by(Page.position.desc()).first()
@@ -55,10 +58,26 @@ async def create_page(request: Request, section_id: int = Form(...), title: str 
     db.add(page)
     db.commit()
     db.refresh(page)
-    return RedirectResponse(url=f"/pages/{page.id}", status_code=302)
+    return nav_or_redirect(request, f"/pages/{page.id}")
 
 
-@router.put("/{page_id}")
+@router.post("/reorder")
+async def reorder_pages(request: Request, db: Session = Depends(get_db)):
+    body = await request.json()
+    ids = body.get("ids") or []
+    for index, raw in enumerate(ids):
+        try:
+            page_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        page = db.query(Page).filter_by(id=page_id).first()
+        if page:
+            page.position = index
+    db.commit()
+    return JSONResponse({"status": "ok"})
+
+
+@router.api_route("/{page_id}", methods=["PUT", "POST"])
 async def update_page_json(request: Request, page_id: int, db: Session = Depends(get_db)):
     """
     Accepts JSON body: {title: "...", content_json: "..."}
@@ -109,13 +128,13 @@ async def delete_page(request: Request, page_id: int, db: Session = Depends(get_
     section = page.section
     section_id = section.id
     notebook_id = section.notebook_id
-    db.delete(page)
+    delete_page_tree(db, page)
     db.commit()
 
     remaining = db.query(Page).filter_by(section_id=section_id, parent_page_id=None).order_by(Page.id).first()
     if remaining:
-        return RedirectResponse(url=f"/pages/{remaining.id}", status_code=302)
-    return RedirectResponse(url=f"/notebooks/{notebook_id}/sections/{section_id}", status_code=302)
+        return nav_or_redirect(request, f"/pages/{remaining.id}")
+    return nav_or_redirect(request, f"/notebooks/{notebook_id}/sections/{section_id}")
 
 
 # ── Move (reorder) ───────────────────────────────────────────────────────────

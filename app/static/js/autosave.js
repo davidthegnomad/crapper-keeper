@@ -72,18 +72,34 @@ document.addEventListener('focusout', (e) => {
     }
 });
 
-// ── Save-on-beforeunload ─────────────────────────────────────────────────────
+// ── Save on leave (PUT + keepalive; sendBeacon cannot PUT and was 405) ──────
 
-window.addEventListener('beforeunload', (e) => {
-    if (currentEditor && isEditorDirty()) {
-        // Fire-and-forget save (can't use async in beforeunload)
-        const title = document.querySelector('#page-title')?.innerText?.trim() || 'Untitled Page';
-        navigator.sendBeacon(`/pages/${currentPageId}`, new URLSearchParams({
-            title,
-            content_json: JSON.stringify(currentEditor.getJSON()),
-        }));
-    }
-});
+function flushKeepalive() {
+    if (!currentEditor || !currentPageId || !isEditorDirty()) return;
+    const title = document.querySelector('#page-title')?.innerText?.trim() || 'Untitled Page';
+    const payload = JSON.stringify({
+        title,
+        content_json: JSON.stringify(currentEditor.getJSON()),
+    });
+    fetch(`/pages/${currentPageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+    }).catch(() => {});
+}
+
+window.addEventListener('pagehide', flushKeepalive);
+window.addEventListener('beforeunload', flushKeepalive);
+
+document.addEventListener('click', (e) => {
+    const link = e.target.closest && e.target.closest('a[href]');
+    if (!link || link.target === '_blank') return;
+    let url;
+    try { url = new URL(link.href, window.location.href); } catch { return; }
+    if (url.origin !== window.location.origin) return;
+    flushKeepalive();
+}, true);
 
 // ── Save status indicator ────────────────────────────────────────────────────
 

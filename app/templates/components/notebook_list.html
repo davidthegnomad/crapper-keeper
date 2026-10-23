@@ -7,25 +7,53 @@
 <div class="tk-tabs-container">
     {% for nb in notebooks %}
     <a href="/notebooks/{{ nb.id }}"
+       data-notebook-id="{{ nb.id }}"
        class="tk-tab tk-tab-{{ loop.index }}
               {% if current_notebook and current_notebook.id == nb.id %}tk-tab-active{% endif %}"
        style="--tab-color: {{ nb.color or '#80397b' }};
               --tab-index: {{ loop.index }};"
        title="{{ nb.title }}">
+        <span class="drag-handle nb-drag-handle" title="Drag to reorder">⋮⋮</span>
         <span class="tk-tab-label">{{ nb.title }}</span>
+        <span role="button" class="row-delete" title="Delete notebook"
+              hx-delete="/notebooks/{{ nb.id }}"
+              hx-confirm="Delete this notebook and all of its pages?"
+              onclick="event.preventDefault()">×</span>
     </a>
     {% endfor %}
-    <form hx-post="/notebooks/" hx-target="body" style="position:absolute; top:{{ (notebooks|length * 34) + 16 }}px; left:0;">
-        <button type="submit" class="tk-tab tk-tab-add"
+    <form id="form-new-notebook" hx-post="/notebooks/" hx-target="#notebook-create-error" hx-swap="innerHTML"
+          style="position:absolute; top:{{ (notebooks|length * 34) + 16 }}px; left:0;">
+        <input type="hidden" name="title" id="new-notebook-title" value="">
+        <button type="button" class="tk-tab tk-tab-add"
                 style="position:static;font-size:16px;padding-left:10px;min-width:30px;"
-                title="New notebook">+</button>
+                title="New notebook" onclick="ckAddNotebook()">+</button>
     </form>
 </div>
 {% else %}
 <div class="tk-tabs-container" style="padding:12px;font-size:11px;color:var(--text-tertiary);text-align:center;">
-    <form hx-post="/notebooks/" hx-target="body">
+    <form hx-post="/notebooks/" hx-target="#notebook-create-error" hx-swap="innerHTML">
         <input type="text" name="title" placeholder="First notebook..."
                style="width:100%;padding:4px 8px;border:1px solid var(--border-default);border-radius:4px;font-size:11px;outline:none;" autofocus>
     </form>
 </div>
 {% endif %}
+<p id="notebook-create-error" class="form-error"></p>
+<script>
+function ckAddNotebook() {
+    const name = window.prompt('Notebook name');
+    const err = document.getElementById('notebook-create-error');
+    if (name == null) return;
+    if (!name.trim()) {
+        if (err) err.textContent = 'Name your notebook first.';
+        return;
+    }
+    if (err) err.textContent = '';
+    if (window.htmx) {
+        window.htmx.ajax('POST', '/notebooks/', {
+            target: '#notebook-create-error',
+            swap: 'innerHTML',
+            values: { title: name.trim() },
+        });
+    }
+}
+</script>

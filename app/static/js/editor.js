@@ -121,13 +121,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.ctrlKey && e.shiftKey && e.key === 'N') {
             e.preventDefault();
             // Create new section — focus the section form
-            const form = document.querySelector('#section-list-sortable form input');
+            const form = document.querySelector('.section-add-form input');
             if (form) form.focus();
         }
         if (e.ctrlKey && e.key === 'n' && !e.shiftKey) {
             e.preventDefault();
             // Create new page
-            const form = document.querySelector('#page-list-sortable form input');
+            const form = document.querySelector('.page-add-form input');
             if (form) form.focus();
         }
     });
