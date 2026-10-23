@@ -7,7 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
-    getFirestore, collection, doc, getDoc, getDocs, addDoc,
+    getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
     updateDoc, deleteDoc, query, where, orderBy, limit, writeBatch, Timestamp
 } from 'firebase/firestore';
 import {
@@ -211,6 +211,14 @@ export async function createNotebook(title, opts = {}) {
     return ref.id;
 }
 
+export async function renameNotebook(id, title) {
+    const existing = await getNotebook(id);
+    if (!existing) throw new Error('Notebook not found');
+    const name = String(title || '').trim();
+    if (!name) throw new Error('A notebook needs a name.');
+    await updateDoc(doc(db, 'notebooks', id), { title: name.slice(0, 200), updatedAt: Timestamp.now() });
+}
+
 async function commitDeletes(refs) {
     const unique = [];
     const seen = new Set();
@@ -307,6 +315,14 @@ export async function getSection(id) {
     const data = { id: snap.id, ...snap.data() };
     if (data.userId !== requireUid()) return null;
     return data;
+}
+
+export async function renameSection(id, title) {
+    const existing = await getSection(id);
+    if (!existing) throw new Error('Chapter not found');
+    const name = String(title || '').trim();
+    if (!name) throw new Error('A chapter needs a name.');
+    await updateDoc(doc(db, 'sections', id), { title: name.slice(0, 200), updatedAt: Timestamp.now() });
 }
 
 export async function deleteSection(id) {
@@ -496,4 +512,37 @@ export async function seedIfEmpty() {
     await createSection(wId, 'Misc', null, '#9575CD');
 
     await createPage(s3Id, 'Standup Notes');
+}
+
+export async function readVaultRecord() {
+    const uid = requireUid();
+    const snap = await getDoc(doc(db, 'vaults', uid));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    if (data.userId !== uid) return null;
+    const updatedAt = data.updatedAt && data.updatedAt.toMillis ? data.updatedAt.toMillis() : 0;
+    return {
+        salt: data.salt,
+        iterations: data.iterations,
+        iv: data.iv,
+        ciphertext: data.ciphertext,
+        updatedAt,
+    };
+}
+
+export async function writeVaultRecord(record) {
+    const uid = requireUid();
+    await setDoc(doc(db, 'vaults', uid), {
+        userId: uid,
+        salt: record.salt,
+        iterations: record.iterations,
+        iv: record.iv,
+        ciphertext: record.ciphertext,
+        updatedAt: Timestamp.now(),
+    });
+}
+
+export async function deleteVaultRecord() {
+    const uid = requireUid();
+    await deleteDoc(doc(db, 'vaults', uid));
 }

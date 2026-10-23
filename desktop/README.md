@@ -22,3 +22,7 @@ npm run desktop
 GitHub Actions (`.github/workflows/desktop-release.yml`) builds both on tag `v*` and attaches them to the GitHub Release.
 
 Unsigned Mac: first launch is **right-click → Open** (Gatekeeper).
+
+## On-device models and the local API
+
+The first launch asks before downloading the speech and notes models. Details, the RAG zip, minutes, and the `127.0.0.1` tool API are in [V2.md](../V2.md).

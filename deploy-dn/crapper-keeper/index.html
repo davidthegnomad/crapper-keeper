@@ -40,18 +40,22 @@
     <div id="app-shell" style="display:none;flex:1;flex-direction:column;height:100%;">
 
     <div class="title-bar">
-        <button onclick="document.querySelector('.sidebar').classList.toggle('hidden')" title="Toggle sidebar">☰</button>
+        <button type="button" id="btn-sidebar" onclick="document.querySelector('.sidebar').classList.toggle('hidden')" title="Toggle sidebar">☰</button>
         <span class="brand">
             <img class="brand-icon" src="./icons/icon-192.png" alt="" width="28" height="28">
             Crapper Keeper
         </span>
+        <div class="view-menu-wrap">
+            <button type="button" id="btn-view" class="view-menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="view-menu">View</button>
+            <div id="view-menu" class="view-menu hidden" role="menu" aria-label="View"></div>
+        </div>
         <div class="search-wrapper">
             <span class="search-icon">⌕</span>
             <input type="text" placeholder="Search all notes..." class="search-input">
             <div id="search-results" class="search-results hidden"></div>
         </div>
         <button type="button" id="btn-dark-mode" title="Toggle vaporwave dark mode" aria-pressed="false">◑</button>
-        <button title="Export notebook as Markdown" id="btn-export" style="color:rgba(255,255,255,.8);font-size:14px;padding:4px 8px;border-radius:4px;">⬇</button>
+        <button title="Export for RAG or as one Markdown file" id="btn-export" style="color:rgba(255,255,255,.8);font-size:14px;padding:4px 8px;border-radius:4px;">⬇</button>
         <button title="Account settings" id="btn-account" class="account-action">⚙</button>
     </div>
 
@@ -75,6 +79,7 @@
         <div class="resizer" id="sidebar-h-resizer" title="Drag to resize sidebar" role="separator" aria-orientation="vertical"></div>
         <div id="editor-pane" class="editor-pane"><div class="empty-state"><div class="empty-inner"><h2>Welcome to Crapper Keeper</h2><p>Loading…</p></div></div></div>
     </div>
+    <div id="tool-stage" class="tool-stage" hidden></div>
 
     <div class="status-bar">
         <span id="save-status">📶 Connected</span>

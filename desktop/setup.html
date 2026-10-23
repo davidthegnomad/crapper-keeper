@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Set up notes</title>
+    <style>
+        html, body { margin: 0; height: 100%; background: #2a0a4a; color: #fff; font: 15px/1.45 system-ui, sans-serif; }
+        main { padding: 28px 28px 22px; display: flex; flex-direction: column; min-height: 100%; box-sizing: border-box; }
+        h1 { font-size: 22px; margin: 0 0 10px; }
+        p { margin: 0 0 12px; color: rgba(255,255,255,.82); }
+        #error { color: #ffb4a8; min-height: 1.2em; }
+        #bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,.15); overflow: hidden; margin: 8px 0 10px; }
+        #fill { display: block; height: 100%; width: 0; background: #ff2bd6; }
+        .row { margin-top: auto; display: flex; gap: 10px; }
+        button { font: inherit; font-weight: 650; border: 0; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+        #go { background: #fff; color: #2a0a4a; }
+        #skip { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.35); }
+        button:disabled { opacity: .55; cursor: default; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Set up on-device notes</h1>
+    <p id="lead">Checking this computer…</p>
+    <p id="detail"></p>
+    <div id="bar" hidden><span id="fill"></span></div>
+    <p id="label"></p>
+    <p id="error"></p>
+    <div class="row">
+        <button id="go" type="button">Download</button>
+        <button id="skip" type="button">Not now</button>
+    </div>
+</main>
+<script>
+const lead = document.getElementById('lead');
+const detail = document.getElementById('detail');
+const bar = document.getElementById('bar');
+const fill = document.getElementById('fill');
+const label = document.getElementById('label');
+const error = document.getElementById('error');
+const go = document.getElementById('go');
+const skip = document.getElementById('skip');
+
+function gb(speech) {
+    return speech ? 'about 1.6 GB' : 'about 1.1 GB';
+}
+
+async function show() {
+    const desk = window.ckDesktop;
+    if (!desk) {
+        lead.textContent = 'Open this from the Crapper Keeper app.';
+        go.hidden = true;
+        return;
+    }
+    const status = await desk.modelsStatus();
+    if (!status.supported) {
+        lead.textContent = 'This computer cannot run the on-device notes model yet.';
+        go.hidden = true;
+        skip.textContent = 'Close';
+        return;
+    }
+    if (status.ready) {
+        lead.textContent = 'The notes model is already on this computer.';
+        detail.textContent = status.whisper || !status.includesSpeech
+            ? 'Ask is ready.'
+            : 'Ask is ready. Voice notes are not available on this Mac yet.';
+        go.hidden = true;
+        skip.textContent = 'Close';
+        return;
+    }
+    const size = gb(status.includesSpeech);
+    lead.textContent = status.includesSpeech
+        ? 'Crapper Keeper can change your notebooks, Slate, Preview, and sticky notes on this computer, and turn a recording into a note.'
+        : 'Crapper Keeper can change your notebooks, Slate, Preview, and sticky notes on this computer. Voice notes are not available on this Mac yet.';
+    detail.textContent = `Download ${size} now? The files stay on this computer, and later use works offline. Nothing downloads until you choose Download.`;
+}
+
+go.addEventListener('click', async () => {
+    go.disabled = true;
+    skip.disabled = true;
+    error.textContent = '';
+    bar.hidden = false;
+    label.textContent = 'Starting…';
+    const result = await window.ckDesktop.downloadModels();
+    if (result && result.ok) {
+        label.textContent = 'Ready. These stay on this computer.';
+        fill.style.width = '100%';
+        setTimeout(() => window.close(), 700);
+        return;
+    }
+    go.disabled = false;
+    skip.disabled = false;
+    error.textContent = (result && result.error) || 'The download did not finish.';
+});
+
+skip.addEventListener('click', async () => {
+    if (window.ckDesktop && skip.textContent === 'Not now') await window.ckDesktop.skipModels();
+    window.close();
+});
+
+if (window.ckDesktop) {
+    window.ckDesktop.onProgress((data) => {
+        label.textContent = data.label || '';
+        if (data.total) fill.style.width = Math.min(100, Math.round((data.got / data.total) * 100)) + '%';
+    });
+}
+
+show();
+</script>
+</body>
+</html>

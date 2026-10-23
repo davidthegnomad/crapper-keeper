@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "attendees": { "type": "string" },
+    "discussion": { "type": "string" },
+    "decisions": { "type": "string" },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "who": { "type": "string" },
+          "what": { "type": "string" },
+          "when": { "type": "string" }
+        },
+        "required": ["who", "what", "when"]
+      }
+    }
+  },
+  "required": ["attendees", "discussion", "decisions", "actions"]
+}

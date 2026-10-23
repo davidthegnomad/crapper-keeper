@@ -1,0 +1,223 @@
+{
+  "tools": [
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "list_notebooks",
+        "description": "List the signed-in user's notebooks. Returns id and title only.",
+        "parameters": { "type": "object", "properties": {}, "additionalProperties": false }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "create_notebook",
+        "description": "Create a notebook.",
+        "parameters": {
+          "type": "object",
+          "properties": { "title": { "type": "string" } },
+          "required": ["title"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "rename_notebook",
+        "description": "Rename a notebook.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "title": { "type": "string" }
+          },
+          "required": ["id", "title"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "delete_notebook",
+        "description": "Delete a notebook and its chapters and pages. confirm must be true.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "confirm": { "type": "boolean" }
+          },
+          "required": ["id", "confirm"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "list_sections",
+        "description": "List chapters in a notebook. Returns id and title only.",
+        "parameters": {
+          "type": "object",
+          "properties": { "notebookId": { "type": "string" } },
+          "required": ["notebookId"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "create_section",
+        "description": "Create a chapter in a notebook.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "notebookId": { "type": "string" },
+            "title": { "type": "string" }
+          },
+          "required": ["notebookId", "title"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "rename_section",
+        "description": "Rename a chapter.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "title": { "type": "string" }
+          },
+          "required": ["id", "title"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "delete_section",
+        "description": "Delete a chapter and its pages. confirm must be true.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "confirm": { "type": "boolean" }
+          },
+          "required": ["id", "confirm"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "list_pages",
+        "description": "List pages in a chapter. Returns id, title, and a short snippet. Not the full body.",
+        "parameters": {
+          "type": "object",
+          "properties": { "sectionId": { "type": "string" } },
+          "required": ["sectionId"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "read_page",
+        "description": "Read one page as plain text, capped.",
+        "parameters": {
+          "type": "object",
+          "properties": { "id": { "type": "string" } },
+          "required": ["id"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "create_page",
+        "description": "Create a page in a chapter. body replaces the text. pageMode may be rich, markdown, or html.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sectionId": { "type": "string" },
+            "title": { "type": "string" },
+            "body": { "type": "string" },
+            "pageMode": { "type": "string", "enum": ["rich", "markdown", "html"] }
+          },
+          "required": ["sectionId", "title"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "update_page",
+        "description": "Replace a page title and body.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "title": { "type": "string" },
+            "body": { "type": "string" },
+            "pageMode": { "type": "string", "enum": ["rich", "markdown", "html"] }
+          },
+          "required": ["id"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "delete_page",
+        "description": "Delete a page. confirm must be true.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "confirm": { "type": "boolean" }
+          },
+          "required": ["id", "confirm"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "api": true,
+      "type": "function",
+      "function": {
+        "name": "export_rag",
+        "description": "Return Markdown files for a notebook, one page per file, with notebook, chapter, and page_id in front matter. Does not include the vault.",
+        "parameters": {
+          "type": "object",
+          "properties": { "notebookId": { "type": "string" } },
+          "required": ["notebookId"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

@@ -333,4 +333,16 @@ bundled locally because Manifest V3 forbids remotely hosted executable code.
 - GitHub Action `.github/workflows/desktop-windows.yml` builds NSIS + portable `.exe`
 - Version 1.3.0
 
+---
+
+## Phase 9: Crapper Keeper 2.0 (2026-10-23)
+
+- View menu: Slate, Preview, and sticky notes in the same window
+- Ask assistant with optional on-device speech (whisper.cpp) and notes (Qwen2.5-1.5B)
+- Vault: passphrase, AES-GCM, per-user Firestore ciphertext
+- RAG zip: one Markdown file per page, plus the old one-file Markdown export
+- Local tool API on 127.0.0.1 for notebooks, chapters, and pages
+- Record minutes into Attendees, Discussion, Decisions, Action items, and Transcript
+- Version 2.0.0 — user guide in `V2.md`
+
 

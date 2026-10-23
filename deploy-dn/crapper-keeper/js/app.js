@@ -25,6 +25,10 @@ import {
     setSourceView,
 } from './render-modes.js';
 import { initNavDnD } from './nav-dnd.js';
+import { mountShellViews } from './shell-views.js';
+import { mountAssistant } from './assistant.js';
+import { buildRagFiles, buildSingleMarkdown, buildZip, ragZipName } from './rag-export.js';
+import { runToolCall } from './tool-run.js';
 
 // ── State ───────────────────────────────────────────────────────────────────
 
@@ -505,9 +509,33 @@ async function flushUnsaved() {
     }
 }
 
+function disarmSave() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    saveDirty = false;
+}
+window.ckFlush = flushUnsaved;
+window.ckDisarmSave = disarmSave;
+
 window.addEventListener('pagehide', () => { flushUnsaved(); });
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushUnsaved();
+});
+window.addEventListener('ck-notebook-sync', async (event) => {
+    const open = event.detail && event.detail.open;
+    disarmSave();
+    try {
+        if (open && (open.pageId || open.sectionId || open.notebookId)) {
+            if (open.notebookId && open.notebookId !== state.currentNotebookId) await selectNotebook(open.notebookId);
+            if (open.sectionId && open.sectionId !== state.currentSectionId) await selectSection(open.sectionId);
+            if (open.pageId) await selectPage(open.pageId);
+            else await refreshAll();
+            return;
+        }
+        await refreshAll();
+    } catch (err) {
+        console.error(err);
+    }
 });
 
 async function selectNotebook(nbId) {
@@ -1082,122 +1110,124 @@ async function init() {
     });
 
     // Export button
-    document.getElementById('btn-export')?.addEventListener('click', exportNotebook);
+    mountExportMenu();
+    if (window.ckDesktop?.onToolCall) {
+        window.ckDesktop.onToolCall(async (msg) => {
+            try {
+                if (window.ckFlush) await window.ckFlush();
+                const result = await runToolCall(msg.name, msg.arguments || {});
+                window.dispatchEvent(new Event('ck-reload-notebook'));
+                window.ckDesktop.submitToolResult({ id: msg.id, ok: true, result });
+            } catch (err) {
+                window.ckDesktop.submitToolResult({ id: msg.id, ok: false, error: err.message || 'The tool failed.' });
+            }
+        });
+    }
+
+    mountShellViews({ flush: flushUnsaved });
+    window.ckNotebookState = () => ({
+        notebookId: state.currentNotebookId,
+        sectionId: state.currentSectionId,
+        pageId: state.currentPageId,
+        view: document.body.dataset.shellView || 'notebook',
+    });
+    mountAssistant();
 }
 
 // ── Export ──────────────────────────────────────────────────────────────────
 
-function jsonToMd(obj) {
-    if (!obj || !obj.content) return '';
-    return obj.content.map(node => {
-        if (node.type === 'paragraph') {
-            const text = (node.content || []).map(n => n.text || '').join('');
-            const marks = node.content?.[0]?.marks || [];
-            let formatted = text;
-            for (const m of marks) {
-                if (m.type === 'bold') formatted = `**${formatted}**`;
-                if (m.type === 'italic') formatted = `*${formatted}*`;
-                if (m.type === 'code') formatted = `\`${formatted}\``;
-                if (m.type === 'link') formatted = `[${formatted}](${m.attrs?.href || ''})`;
-            }
-            return formatted + '\n';
-        }
-        if (node.type === 'heading') {
-            const level = node.attrs?.level || 1;
-            const text = (node.content || []).map(n => n.text || '').join('');
-            return '#'.repeat(level) + ' ' + text + '\n';
-        }
-        if (node.type === 'bulletList') {
-            return (node.content || []).map(li => {
-                const text = (li.content?.[0]?.content || []).map(n => n.text || '').join('');
-                return '- ' + text + '\n';
-            }).join('');
-        }
-        if (node.type === 'orderedList') {
-            return (node.content || []).map((li, i) => {
-                const text = (li.content?.[0]?.content || []).map(n => n.text || '').join('');
-                return `${i+1}. ${text}\n`;
-            }).join('');
-        }
-        if (node.type === 'taskList') {
-            return (node.content || []).map(li => {
-                const checked = li.attrs?.checked ? 'x' : ' ';
-                const text = (li.content?.[0]?.content || []).map(n => n.text || '').join('');
-                return `- [${checked}] ${text}\n`;
-            }).join('');
-        }
-        if (node.type === 'blockquote') {
-            const inner = jsonToMd({ content: node.content || [] });
-            return inner.split('\n').filter(l => l).map(l => '> ' + l).join('\n') + '\n';
-        }
-        if (node.type === 'codeBlock') {
-            const lang = node.attrs?.language || '';
-            const text = (node.content || []).map(n => n.text || '').join('');
-            return '```' + lang + '\n' + text + '\n```\n';
-        }
-        if (node.type === 'horizontalRule') return '---\n';
-        if (node.type === 'image') {
-            return `![${node.attrs?.alt || ''}](${node.attrs?.src || ''})\n`;
-        }
-        return '';
-    }).join('') + '\n';
+function downloadBlob(bytes, filename, type) {
+    const blob = new Blob([bytes], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
-function pageToMarkdown(page) {
-    const mode = normalizePageMode(page.pageMode);
-    if (mode === 'markdown') return page.contentSource || page.contentPlain || '';
-    if (mode === 'html') {
-        const src = page.contentSource || '';
-        return src ? '```html\n' + src + '\n```\n' : (page.contentPlain || '');
+async function ragInput(scope) {
+    if (window.ckFlush) await window.ckFlush();
+    const notebook = state.notebooks.find((item) => item.id === state.currentNotebookId);
+    if (!notebook) return null;
+    let sections = await getSections(notebook.id);
+    if (scope !== 'notebook') {
+        sections = sections.filter((section) => section.id === state.currentSectionId);
     }
-    try {
-        const json = JSON.parse(page.contentJson || '{}');
-        return jsonToMd(json);
-    } catch (e) {
-        return page.contentPlain || '';
+    const packed = [];
+    for (const section of sections) {
+        let pages = await getPages(section.id);
+        if (scope === 'page') {
+            pages = pages.filter((page) => page.id === state.currentPageId || (page.subpages || []).some((sub) => sub.id === state.currentPageId));
+            pages = pages.map((page) => {
+                if (page.id === state.currentPageId) return { ...page, subpages: [] };
+                return { ...page, subpages: (page.subpages || []).filter((sub) => sub.id === state.currentPageId) };
+            });
+        }
+        packed.push({ title: section.title, pages });
     }
+    return { notebookTitle: notebook.title || 'Notebook', sections: packed };
+}
+
+async function exportRag(scope) {
+    const input = await ragInput(scope);
+    if (!input) return;
+    const files = buildRagFiles(input);
+    downloadBlob(buildZip(files), ragZipName(input.notebookTitle), 'application/zip');
 }
 
 async function exportNotebook() {
-    if (!state.currentNotebookId) return;
-    const nb = state.notebooks.find(n => n.id === state.currentNotebookId);
-    if (!nb) return;
+    const input = await ragInput('notebook');
+    if (!input) return;
+    const markdown = buildSingleMarkdown(input);
+    downloadBlob(new TextEncoder().encode(markdown), `${input.notebookTitle.replace(/[^\w.-]+/g, '_')}.md`, 'text/markdown');
+}
 
-    const sections = await getSections(state.currentNotebookId);
-    let md = `# ${nb.title}\n\n`;
-
-    const groups = await getSectionGroups(state.currentNotebookId);
-    for (const sg of groups) {
-        const gs = await getSections(state.currentNotebookId, sg.id);
-        sections.push(...gs);
+function mountExportMenu() {
+    const btn = document.getElementById('btn-export');
+    if (!btn || document.getElementById('export-menu')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'view-menu-wrap';
+    btn.parentNode.insertBefore(wrap, btn);
+    wrap.appendChild(btn);
+    btn.setAttribute('aria-haspopup', 'menu');
+    btn.setAttribute('aria-expanded', 'false');
+    const menu = document.createElement('div');
+    menu.id = 'export-menu';
+    menu.className = 'view-menu hidden';
+    menu.setAttribute('role', 'menu');
+    const items = [
+        ['page', 'This page for RAG'],
+        ['section', 'This chapter for RAG'],
+        ['notebook', 'This notebook for RAG'],
+        ['markdown', 'Notebook as one Markdown file'],
+    ];
+    for (const [id, label] of items) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'view-menu-item';
+        item.textContent = label;
+        item.addEventListener('click', () => {
+            menu.classList.add('hidden');
+            btn.setAttribute('aria-expanded', 'false');
+            if (id === 'markdown') exportNotebook();
+            else exportRag(id);
+        });
+        menu.appendChild(item);
     }
-
-    for (const section of sections) {
-        md += `## ${section.title}\n\n`;
-        const pages = await getPages(section.id);
-        for (const page of pages) {
-            md += `### ${page.title}\n\n`;
-            md += pageToMarkdown(page);
-            md += '\n---\n\n';
-
-            if (page.subpages) {
-                for (const sub of page.subpages) {
-                    md += `#### ${sub.title}\n\n`;
-                    md += pageToMarkdown(sub);
-                    md += '\n';
-                }
-            }
+    wrap.appendChild(menu);
+    btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const open = menu.classList.contains('hidden');
+        menu.classList.toggle('hidden', !open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', (event) => {
+        if (!wrap.contains(event.target)) {
+            menu.classList.add('hidden');
+            btn.setAttribute('aria-expanded', 'false');
         }
-    }
-
-    // Download
-    const blob = new Blob([md], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${nb.title.replace(/[^a-z0-9]/gi, '_')}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    });
 }
 
 if (document.readyState === 'loading') {

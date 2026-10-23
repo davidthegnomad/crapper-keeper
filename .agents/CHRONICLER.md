@@ -5,7 +5,7 @@ Automatically record session activity, decisions, and state changes for the Crap
 
 ## Session State
 - **Current Phase:** Native configuration + device testing
-- **Last Deploy:** 2026-08-14 — davidthegnomadorg.web.app/crapper-keeper/ (v1.2.0 Markdown + HTML/HTMX)
+- **Last Deploy:** 2026-10-23 — web v2.0.0 + GitHub Release v2.0.0 (Mac/Win desktop)
 - **Open Issues:** Apple provider config, Android signing SHAs/toolchain, iOS runtime
 - **Next Steps:** Complete native config, run device matrix, submit TestFlight and Play internal builds
 

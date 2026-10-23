@@ -21,14 +21,28 @@ const TOKEN_REFRESH = `https://securetoken.googleapis.com/v1/token?key=${API_KEY
 
 // ── Context menus ─────────────────────────────────────────────────────────────
 
-chrome.runtime.onInstalled.addListener(() => {
+function installMenus() {
     chrome.contextMenus.removeAll(() => {
-        chrome.contextMenus.create({ id: 'ck-save-page', title: 'Save to Crapper Keeper', contexts: ['page'] });
-        chrome.contextMenus.create({ id: 'ck-save-selection', title: 'Save selection to CK', contexts: ['selection'] });
-        chrome.contextMenus.create({ id: 'ck-save-image', title: 'Save image to CK', contexts: ['image'] });
-        chrome.contextMenus.create({ id: 'ck-save-link', title: 'Save link to CK', contexts: ['link'] });
+        chrome.contextMenus.create({
+            id: 'ck-root',
+            title: 'Crapper Keeper',
+            contexts: ['page', 'selection', 'link', 'image'],
+        }, () => {
+            const add = (props) => chrome.contextMenus.create({ parentId: 'ck-root', ...props });
+            add({ id: 'ck-save-page', title: 'Save page to notebook', contexts: ['page'] });
+            add({ id: 'ck-save-selection', title: 'Save selection to notebook', contexts: ['selection'] });
+            add({ id: 'ck-save-image', title: 'Save image to notebook', contexts: ['image'] });
+            add({ id: 'ck-save-link', title: 'Save link to notebook', contexts: ['link'] });
+            add({ id: 'ck-open-sep', type: 'separator', contexts: ['page', 'selection', 'link', 'image'] });
+            add({ id: 'ck-open-slate', title: 'Open in Slate', contexts: ['page', 'selection', 'link', 'image'] });
+            add({ id: 'ck-open-preview', title: 'Open in Preview', contexts: ['page', 'selection', 'link', 'image'] });
+            add({ id: 'ck-open-stickies', title: 'Open as sticky note', contexts: ['page', 'selection', 'link'] });
+        });
     });
-});
+}
+
+chrome.runtime.onInstalled.addListener(installMenus);
+installMenus();
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
 
@@ -256,7 +270,53 @@ function flashBadge(text, color, ms) {
 
 // ── Context menu handler ─────────────────────────────────────────────────────────
 
+function buildOpenHash(view, { title = '', url = '', text = '' } = {}) {
+    const params = new URLSearchParams();
+    params.set('ck', view);
+    if (title) params.set('title', String(title).slice(0, 180));
+    if (url) params.set('url', String(url).slice(0, 800));
+    if (text) params.set('text', String(text).slice(0, 4000));
+    return `#${params.toString()}`;
+}
+
+async function openInView(view, info, tab) {
+    const pageUrl = tab?.url || info.pageUrl || '';
+    const url = info.linkUrl || info.srcUrl || pageUrl;
+    const title = info.linkUrl ? (info.linkUrl) : (tab?.title || 'Clip');
+    let text = (info.selectionText || '').trim();
+    if (!text && info.srcUrl && view === 'preview') {
+        text = `<img src="${info.srcUrl}" alt="${(tab?.title || 'Image').replace(/"/g, '')}">`;
+    } else if (!text && info.srcUrl) {
+        text = info.srcUrl;
+    } else if (!text && info.linkUrl) {
+        text = info.linkUrl;
+    } else if (!text && tab?.id) {
+        text = await readExcerpt(tab.id);
+    }
+    const hash = buildOpenHash(view, { title: tab?.title || title, url, text });
+    const target = WEBAPP_URL + hash;
+    const tabs = await chrome.tabs.query({ url: `${WEBAPP_URL}*` });
+    if (tabs[0]?.id) {
+        await chrome.tabs.update(tabs[0].id, { url: target, active: true });
+        if (tabs[0].windowId != null) await chrome.windows.update(tabs[0].windowId, { focused: true });
+    } else {
+        await chrome.tabs.create({ url: target });
+    }
+    flashBadge('\u2713', '#107c41', 2000);
+}
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === 'ck-open-slate' || info.menuItemId === 'ck-open-preview' || info.menuItemId === 'ck-open-stickies') {
+        const view = info.menuItemId.replace('ck-open-', '');
+        try {
+            await openInView(view, info, tab);
+        } catch (e) {
+            console.error('CK open failed:', e);
+            flashBadge('!', '#d83b01', 3000);
+        }
+        return;
+    }
+
     let auth;
     try {
         auth = await ensureAuth(true); // right-click is a user gesture → interactive OK

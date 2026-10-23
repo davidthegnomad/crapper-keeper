@@ -14,6 +14,7 @@ export default defineConfig({
         outDir: resolve(__dirname, 'dist/crapper-keeper'),
         emptyOutDir: true,
         sourcemap: true,
+        chunkSizeWarningLimit: 3000,
     },
     server: {
         port: 5173,

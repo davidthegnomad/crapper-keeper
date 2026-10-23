@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "properties": {
+    "say": { "type": "string", "maxLength": 400 },
+    "tools": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "switch_view",
+              "open_page",
+              "create_notebook",
+              "rename_notebook",
+              "delete_notebook",
+              "create_section",
+              "rename_section",
+              "delete_section",
+              "create_page",
+              "update_page",
+              "delete_page",
+              "create_slate",
+              "update_slate",
+              "delete_slate",
+              "set_preview",
+              "create_sticky",
+              "update_sticky",
+              "delete_sticky",
+              "create_secret",
+              "update_secret",
+              "delete_secret"
+            ]
+          },
+          "args": { "type": "object" }
+        },
+        "required": ["name"]
+      }
+    }
+  },
+  "required": ["say", "tools"]
+}

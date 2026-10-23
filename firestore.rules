@@ -45,6 +45,21 @@ service cloud.firestore {
       allow update: if isOwner() && ownerUnchanged();
       allow delete: if isOwner();
     }
+    match /vaults/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if false;
+      allow create, update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.userId == userId
+        && request.resource.data.ciphertext is string
+        && request.resource.data.salt is string
+        && request.resource.data.iv is string
+        && request.resource.data.iterations is int
+        && request.resource.data.ciphertext.size() < 400000
+        && request.resource.data.salt.size() < 128
+        && request.resource.data.iv.size() < 128;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
     match /pages/{docId} {
       allow get: if isSignedIn() && (
         !exists(/databases/$(database)/documents/pages/$(docId))
